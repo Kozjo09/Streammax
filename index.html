@@ -6,26 +6,42 @@
     <title>StreamMax Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,700;0,800;1,800;1,900&display=swap');
         body { background: #05020a; color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
-        .glass-nav { background: rgba(8, 4, 15, 0.98); border-bottom: 1px solid rgba(139, 92, 246, 0.1); }
+        
+        /* Navigatie */
+        .glass-nav { background: rgba(8, 4, 15, 0.95); border-bottom: 1px solid rgba(139, 92, 246, 0.1); backdrop-filter: blur(10px); }
+        .nav-link { font-size: 10px; font-weight: 800; text-transform: uppercase; text-align: center; padding: 12px 0; border-radius: 12px; color: #64748b; background: #110826; flex: 1; margin: 0 2px; display: block; text-decoration: none; cursor: pointer; transition: all 0.3s; }
+        .nav-link.active { background: #7c3aed; color: white; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3); }
+        
+        /* Player & Server Knoppen */
         .player-box { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 16px; overflow: hidden; border: 1px solid rgba(139, 92, 246, 0.2); }
-        .nav-link { font-size: 10px; font-weight: 800; text-transform: uppercase; text-align: center; padding: 12px 0; border-radius: 12px; color: #94a3b8; background: #110826; flex: 1; margin: 0 2px; display: block; text-decoration: none; cursor: pointer; transition: all 0.2s; }
-        .nav-link.active { background: #7c3aed; color: white; }
-        .input-group { background: #110826; border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 14px; padding: 14px; color: white; width: 100%; outline: none; -webkit-appearance: none; }
-        .poster-card { aspect-ratio: 2/3; border-radius: 16px; overflow: hidden; background: #0e071b; position: relative; border: 1px solid rgba(255,255,255,0.05); display: block; text-decoration: none; cursor: pointer; }
+        .srv-btn { flex: 1; text-align: center; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 12px 4px; border-radius: 12px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
+        .srv-btn.active { background: #7c3aed; color: white; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3); border-color: #a855f7; }
+        .srv-btn.inactive { background: #110826; color: #64748b; border-color: rgba(139, 92, 246, 0.2); }
+
+        /* Episode Grid */
+        .ep-btn { width: 100%; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 800; font-size: 14px; transition: all 0.2s; cursor: pointer; }
+        .ep-current { background: #a855f7; color: white; box-shadow: 0 0 15px rgba(168, 85, 247, 0.4); border: 2px solid #d8b4fe; }
+        .ep-watched { background: #2a1354; color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.2); }
+        .ep-available { background: #1a0c3b; color: #94a3b8; border: 1px solid transparent; }
+        .ep-available:hover { background: #3b1c7a; color: white; }
+        .ep-future { background: #0a0514; color: #334155; cursor: not-allowed; }
+
+        /* Inputs & Kaarten */
+        .input-group { background: #110826; border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 14px; padding: 14px; color: white; outline: none; -webkit-appearance: none; }
+        .poster-card { aspect-ratio: 2/3; border-radius: 16px; overflow: hidden; background: #0e071b; position: relative; border: 1px solid rgba(255,255,255,0.05); display: block; cursor: pointer; transition: transform 0.2s; }
+        .poster-card:active { transform: scale(0.96); }
         .img-cover { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.5s; }
         .img-loaded { opacity: 1; }
-        .launch-btn { background: #7c3aed; color: white; font-weight: 900; text-transform: uppercase; padding: 16px; border-radius: 16px; width: 100%; cursor: pointer; border: none; }
-        .launch-btn:active { transform: scale(0.98); }
-        iframe { width: 100%; height: 100%; border: none; display: block; }
+        iframe { width: 100%; height: 100%; border: none; display: block; background: #000; }
         ::-webkit-scrollbar { width: 0px; background: transparent; }
     </style>
 </head>
 <body class="pb-20">
 
     <div class="sticky top-0 z-50 glass-nav px-2 py-4">
-        <div class="flex items-center justify-center mb-4">
+        <div class="flex items-center justify-center mb-4 gap-2">
             <h1 class="text-sm font-black italic tracking-tighter uppercase">STREAM<span class="text-purple-500">MAX</span></h1>
         </div>
         <div class="flex" id="navContainer">
@@ -37,112 +53,110 @@
         </div>
     </div>
 
-    <div class="px-4 mt-4">
+    <div class="px-4 mt-4 max-w-2xl mx-auto">
 
-        <!-- ── Player View ── -->
         <div id="view-player" class="view-section hidden">
-            <div class="player-box mb-6 shadow-2xl" id="playerBox">
+            
+            <div id="mediaHeader" class="hidden mb-4">
+                <h2 id="mediaTitle" class="text-xl md:text-2xl font-black italic tracking-tight text-[#d8b4fe] uppercase drop-shadow-md">TITEL HIER</h2>
+                
+                <div class="flex items-center justify-between mt-3 bg-[#110826] p-3 rounded-xl border border-purple-500/20">
+                    <div class="flex flex-col">
+                        <span class="text-[9px] font-black uppercase tracking-widest text-slate-500">Jouw Status</span>
+                        <span id="mediaStats" class="text-xs font-bold text-purple-400 mt-1">Watching - Ep <span id="currentEpLabel">1</span> / <span id="totalEpLabel">?</span></span>
+                    </div>
+                    <span id="mediaBadge" class="bg-purple-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-md tracking-widest">Serie</span>
+                </div>
+            </div>
+
+            <div class="player-box mb-3 shadow-2xl shadow-purple-900/20" id="playerBox">
                 <div class="h-full flex flex-col items-center justify-center text-purple-500/10">
-                    <span class="text-[9px] font-black uppercase tracking-[0.3em]">Wachten op ID...</span>
+                    <span class="text-[9px] font-black uppercase tracking-[0.3em]">Selecteer een titel...</span>
                 </div>
             </div>
 
-            <div class="space-y-4">
-                <div>
-                    <label class="text-[10px] font-black uppercase text-slate-500 ml-1 mb-2 block tracking-widest">IMDb of TMDb ID</label>
-                    <input type="text" id="imdbInput" class="input-group" placeholder="tt... of numeriek TMDb ID">
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-[10px] font-black uppercase text-slate-500 ml-1 mb-2 block tracking-widest">Server</label>
-                        <select id="srvInput" class="input-group text-xs font-bold text-purple-400">
-                            <option value="1">Server 1 – VidSrc .ru</option>
-                            <option value="2">Server 2 – VidSrc .su</option>
-                            <option value="3">Server 3 – EmbedMaster</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-black uppercase text-slate-500 ml-1 mb-2 block tracking-widest">Type</label>
-                        <select id="typeInput" class="input-group text-xs font-bold" onchange="toggleSeriesMeta()">
-                            <option value="movie">Film</option>
-                            <option value="tv">Serie</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div id="seriesMeta" class="hidden grid grid-cols-2 gap-3">
-                    <div class="relative">
-                        <label class="text-[9px] font-bold text-slate-600 absolute -top-2 left-3 bg-[#05020a] px-1 uppercase">Seizoen</label>
-                        <input type="number" id="seasonInput" class="input-group pt-5" min="1" value="1">
-                    </div>
-                    <div class="relative">
-                        <label class="text-[9px] font-bold text-slate-600 absolute -top-2 left-3 bg-[#05020a] px-1 uppercase">Aflevering</label>
-                        <input type="number" id="episodeInput" class="input-group pt-5" min="1" value="1">
-                    </div>
-                </div>
-
-                <button onclick="launchPlayerFromForm()" class="launch-btn shadow-lg shadow-purple-900/30">▶&nbsp; NU AFSPELEN</button>
+            <div class="flex gap-2 mb-4 overflow-x-auto" id="serverButtons">
+                <button onclick="changeServer('1')" id="btn-srv-1" class="srv-btn active">VidSrc .ru</button>
+                <button onclick="changeServer('2')" id="btn-srv-2" class="srv-btn inactive">VidSrc .su</button>
+                <button onclick="changeServer('3')" id="btn-srv-3" class="srv-btn inactive">EmbedMaster</button>
             </div>
 
-            <h2 class="text-[10px] font-black uppercase text-slate-700 mt-10 mb-4 tracking-widest">Geschiedenis</h2>
+            <div id="tvControls" class="hidden flex items-center justify-between bg-[#0e071b] p-4 rounded-2xl border border-purple-500/10 mb-6">
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="autoNextToggle" class="sr-only peer" checked>
+                    <div class="w-11 h-6 bg-[#1a0c3b] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
+                    <span class="ml-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Auto Next</span>
+                </label>
+                <button onclick="goNextEpisode()" class="bg-[#2a1354] hover:bg-purple-600 text-purple-200 hover:text-white text-[10px] font-black uppercase tracking-widest py-3 px-5 rounded-xl transition-colors flex items-center gap-2 shadow-lg">
+                    Volgende EP <span class="text-lg leading-none">&raquo;</span>
+                </button>
+            </div>
+
+            <div id="tvEpisodesSection" class="hidden mb-8">
+                <div class="flex justify-between items-center mb-4 px-1">
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Kies Seizoen</span>
+                    <select id="seasonSelect" onchange="changeSeason()" class="bg-[#110826] text-purple-400 text-xs font-bold py-2 px-3 rounded-xl outline-none cursor-pointer border border-purple-500/30">
+                        </select>
+                </div>
+                <div id="episodesContainer" class="grid grid-cols-5 md:grid-cols-6 gap-2">
+                    </div>
+            </div>
+
+            <div class="bg-[#0e071b] p-4 rounded-2xl border border-purple-500/10 mb-8 mt-2">
+                <h3 class="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3">Titel Handmatig Invoeren</h3>
+                <div class="flex gap-2 mb-3">
+                    <input type="text" id="imdbInput" class="input-group text-sm py-3 px-4 w-2/3" placeholder="tt... of TMDb ID">
+                    <select id="typeInput" class="input-group text-xs font-bold py-3 px-2 w-1/3 text-center">
+                        <option value="movie">Film</option>
+                        <option value="tv">Serie</option>
+                    </select>
+                </div>
+                <button onclick="manualLoad()" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl py-4 text-[10px] uppercase tracking-wider transition-colors shadow-lg">Laad Titel</button>
+            </div>
+
+            <h2 class="text-[10px] font-black uppercase text-slate-700 mt-6 mb-4 tracking-widest">Verder Kijken</h2>
             <div id="historyGrid" class="grid grid-cols-2 gap-4"></div>
         </div>
 
-        <!-- ── Grid View (Films / Series / Nieuw) ── -->
         <div id="view-grid" class="view-section hidden">
-            <div id="latestGrid" class="grid grid-cols-2 gap-4"></div>
+            <div id="latestGrid" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
             <div id="gridLoader" class="text-center py-10 text-purple-500 text-xs font-bold tracking-widest uppercase hidden">Laden...</div>
         </div>
 
-        <!-- ── Search View ── -->
         <div id="view-search" class="view-section hidden">
             <div class="flex gap-2 mb-6">
                 <input type="text" id="searchInput" class="input-group" placeholder="Zoek een film of serie..." onkeypress="handleSearchEnter(event)">
-                <button onclick="performSearch()" class="bg-purple-600 text-white font-bold rounded-xl px-4 text-xs uppercase tracking-wider flex-shrink-0">Zoek</button>
+                <button onclick="performSearch()" class="bg-purple-600 text-white font-bold rounded-xl px-5 text-xs uppercase tracking-wider flex-shrink-0">Zoek</button>
             </div>
             <div id="searchLoader" class="text-center py-10 text-purple-500 text-xs font-bold tracking-widest uppercase hidden">Zoeken...</div>
-            <div id="searchGrid" class="grid grid-cols-2 gap-4"></div>
+            <div id="searchGrid" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
         </div>
 
     </div>
 
-    <!-- ── Modal ── -->
-    <div id="msgBox" class="fixed inset-0 bg-black/80 z-[100] hidden flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-[#110826] border border-purple-500/30 p-6 rounded-2xl w-3/4 max-w-sm text-center shadow-2xl">
+    <div id="msgBox" class="fixed inset-0 bg-black/80 z-[100] hidden flex items-center justify-center backdrop-blur-sm transition-opacity">
+        <div class="bg-[#110826] border border-purple-500/30 p-6 rounded-2xl w-5/6 max-w-sm text-center shadow-2xl">
             <p id="msgText" class="text-white text-sm font-bold mb-6"></p>
-            <button id="msgCloseBtn" onclick="closeMsg()" class="bg-purple-600 text-white font-black text-xs px-6 py-3 rounded-xl uppercase tracking-widest w-full">Begrepen</button>
+            <button onclick="closeMsg()" class="bg-purple-600 text-white font-black text-xs px-6 py-3 rounded-xl uppercase tracking-widest w-full">Begrepen</button>
         </div>
     </div>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════
-   TMDB API KEY
-   ─────────────────────────────────────────────────────────────
-   Get your own FREE key (takes 2 minutes):
-     1. https://www.themoviedb.org/signup
-     2. Log in → Settings → API → Create → Developer
-     3. Paste the "API Key (v3 auth)" below.
-   Without a valid key search and grids will show errors.
+   CONFIGURATIE & API
 ═══════════════════════════════════════════════════════════════ */
 const TMDB_KEY = "d817468ccaad3dc61a7e78bc148125e6";
 
-/* ═══════════════════════════════════════════════════════════════
-   WHY TMDB ENDPOINTS INSTEAD OF VIDSRC LISTING?
-   ─────────────────────────────────────────────────────────────
-   vidsrc-embed.ru listing endpoints don't send CORS headers,
-   so browsers block the fetch() call entirely. TMDB's API is
-   fully CORS-enabled and works directly in the browser.
-   VidSrc embed iframes still work — only the listing JSON had
-   the CORS issue.
-═══════════════════════════════════════════════════════════════ */
 const API_URLS = {
     latest_movies:   'https://api.themoviedb.org/3/trending/movie/week?api_key=' + TMDB_KEY + '&language=nl-NL',
     latest_tv:       'https://api.themoviedb.org/3/trending/tv/week?api_key='    + TMDB_KEY + '&language=nl-NL',
     latest_episodes: 'https://api.themoviedb.org/3/tv/airing_today?api_key='     + TMDB_KEY + '&language=nl-NL'
 };
 
-/* popup blocker – parent page level only (no sandbox on iframes) */
+// tmdbId is toegevoegd aan de state om IMDb vertalingen op te slaan
+let currentMedia = { id: null, tmdbId: null, type: null, title: "", totalSeasons: 1, currentSeason: 1, currentEpisode: 1, totalEpsInSeason: 1, srv: "1" };
+
+/* popup blocker */
 (function () {
     const _orig = window.open;
     window.open = function (url) {
@@ -152,324 +166,452 @@ const API_URLS = {
 })();
 
 /* ─────────────────────────────────────────────────────────────
-   NAVIGATION
+   NAVIGATIE
 ───────────────────────────────────────────────────────────── */
 function navigate(viewName, params) {
-    params = params || {};
-    document.querySelectorAll('.nav-link').forEach(function (l) { l.classList.remove('active'); });
-    var nav = document.getElementById('nav-' + viewName);
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    let nav = document.getElementById('nav-' + viewName);
     if (nav) nav.classList.add('active');
     else document.getElementById('nav-player').classList.add('active');
 
-    document.querySelectorAll('.view-section').forEach(function (s) { s.classList.add('hidden'); });
-    window.scrollTo(0, 0);
+    document.querySelectorAll('.view-section').forEach(s => s.classList.add('hidden'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     if (viewName === 'player') {
         document.getElementById('view-player').classList.remove('hidden');
-        renderPlayer(params);
+        if (params && params.id) {
+            document.getElementById('playerBox').innerHTML = '<div class="h-full flex flex-col items-center justify-center text-purple-500/10"><span class="text-[9px] font-black uppercase tracking-[0.3em]">Laden...</span></div>';
+            initPlayerContent(params);
+        }
+        renderHistory();
     } else if (viewName === 'search') {
         document.getElementById('view-search').classList.remove('hidden');
+        setTimeout(() => document.getElementById('searchInput').focus(), 100);
     } else {
         document.getElementById('view-grid').classList.remove('hidden');
         loadLatest(viewName);
     }
 }
 
-function toggleSeriesMeta() {
-    var isTv = document.getElementById('typeInput').value === 'tv';
-    document.getElementById('seriesMeta').classList.toggle('hidden', !isTv);
-}
-
-function showMsg(text, showBtn) {
-    if (showBtn === undefined) showBtn = true;
+function showMsg(text) {
     document.getElementById('msgText').innerText = text;
-    document.getElementById('msgCloseBtn').style.display = showBtn ? 'block' : 'none';
     document.getElementById('msgBox').classList.remove('hidden');
 }
 function closeMsg() { document.getElementById('msgBox').classList.add('hidden'); }
 
 /* ─────────────────────────────────────────────────────────────
-   URL BUILDER
-   Per VidSrc docs (confirmed): both ?imdb=tt... and ?tmdb=NUM
-   are valid for movies, tv shows and episodes.
-   EmbedMaster also accepts numeric TMDb IDs in the path.
+   PLAYER INITIALISATIE (Met IMDb naar TMDb Vertaler)
 ───────────────────────────────────────────────────────────── */
-function buildPlayerURL(id, type, s, e, srv) {
-    var isIMDb  = String(id).startsWith('tt');
-    var idParam = isIMDb ? ('imdb=' + id) : ('tmdb=' + id);
+async function initPlayerContent(params) {
+    if (!params.id) return;
 
-    if (srv === '1') {
-        return type === 'movie'
-            ? 'https://vidsrc-embed.ru/embed/movie?' + idParam
-            : 'https://vidsrc-embed.ru/embed/tv?' + idParam + '&season=' + s + '&episode=' + e;
+    let defaultSrv = (params.id && !params.srv) ? '1' : (params.srv || '1');
+
+    currentMedia.id = String(params.id).trim();
+    currentMedia.tmdbId = currentMedia.id; // Standaard gelijk, tenzij we het updaten
+    currentMedia.type = params.type || 'movie';
+    currentMedia.currentSeason = parseInt(params.s) || 1;
+    currentMedia.currentEpisode = parseInt(params.e) || 1;
+    currentMedia.srv = defaultSrv;
+
+    document.getElementById('imdbInput').value = currentMedia.id;
+    document.getElementById('typeInput').value = currentMedia.type;
+    updateServerUI(currentMedia.srv);
+
+    document.getElementById('mediaHeader').classList.remove('hidden');
+    document.getElementById('mediaTitle').innerText = "Gegevens Ophalen...";
+    document.getElementById('tvEpisodesSection').classList.add('hidden');
+    document.getElementById('tvControls').classList.add('hidden');
+    document.getElementById('mediaBadge').innerText = currentMedia.type === 'tv' ? 'Serie' : 'Film';
+
+    try {
+        // VERTALER: Zet een 'tt' IMDb ID om naar een numeriek TMDb ID!
+        if (currentMedia.id.startsWith('tt')) {
+            let findRes = await fetch(`https://api.themoviedb.org/3/find/${currentMedia.id}?api_key=${TMDB_KEY}&external_source=imdb_id`);
+            let findData = await findRes.json();
+            let results = currentMedia.type === 'tv' ? findData.tv_results : findData.movie_results;
+            if (results && results.length > 0) {
+                currentMedia.tmdbId = results[0].id;
+            }
+        }
+
+        // Haal de echte info op via het (eventueel vertaalde) TMDb ID
+        let epInfo = currentMedia.type === 'tv' ? 'tv' : 'movie';
+        let res = await fetch(`https://api.themoviedb.org/3/${epInfo}/${currentMedia.tmdbId}?api_key=${TMDB_KEY}&language=nl-NL`);
+        let data = await res.json();
+        
+        if (data.status_code === 34) throw new Error("Titel niet gevonden in database.");
+
+        currentMedia.title = data.title || data.name || "Onbekende Titel";
+        document.getElementById('mediaTitle').innerText = currentMedia.title;
+
+        if (currentMedia.type === 'tv') {
+            document.getElementById('tvEpisodesSection').classList.remove('hidden');
+            document.getElementById('tvControls').classList.remove('hidden');
+            
+            let validSeasons = (data.seasons || []).filter(s => s.season_number > 0);
+            currentMedia.totalSeasons = validSeasons.length || 1;
+            
+            if (validSeasons.length > 0) {
+                renderSeasonDropdown(validSeasons);
+            }
+            await loadSeasonAndPlay(currentMedia.currentSeason, currentMedia.currentEpisode);
+        } else {
+            document.getElementById('mediaStats').innerHTML = `<span class="text-purple-400">Speelduur: ${data.runtime || '?'} min</span>`;
+            injectIframe();
+            saveToHistory();
+        }
+    } catch (err) {
+        console.error("Fout bij ophalen TMDB info:", err);
+        document.getElementById('mediaTitle').innerText = "Titel Onbekend / Ongeldig ID";
+        // Fallback: Probeer de speler alsnog te forceren met het rauwe ID
+        injectIframe();
+        saveToHistory();
     }
-    if (srv === '2') {
-        return type === 'movie'
-            ? 'https://vidsrc-embed.su/embed/movie?' + idParam
-            : 'https://vidsrc-embed.su/embed/tv?' + idParam + '&season=' + s + '&episode=' + e;
+}
+
+function manualLoad() {
+    let inputId = document.getElementById('imdbInput').value.trim();
+    let inputType = document.getElementById('typeInput').value;
+    if (!inputId) {
+        showMsg("Vul een geldig IMDb of TMDb ID in.");
+        return;
     }
-    /* Server 3 – EmbedMaster */
-    return type === 'movie'
-        ? 'https://embedmaster.link/movie/' + id
-        : 'https://embedmaster.link/tv/' + id + '/' + s + '/' + e;
+    navigate('player', { id: inputId, type: inputType });
 }
 
 /* ─────────────────────────────────────────────────────────────
-   PLAYER – direct iframe, no overlay
+   SERVER KEUZE LOGICA
 ───────────────────────────────────────────────────────────── */
-function renderPlayer(params) {
-    var id   = (params.id   !== undefined && params.id   !== '') ? params.id   : document.getElementById('imdbInput').value.trim();
-    var type = params.type  || document.getElementById('typeInput').value  || 'movie';
-    var s    = String(params.s   || document.getElementById('seasonInput').value  || '1');
-    var e    = String(params.e   || document.getElementById('episodeInput').value || '1');
-    var srv  = String(params.srv || document.getElementById('srvInput').value     || '1');
-
-    document.getElementById('imdbInput').value    = id;
-    document.getElementById('typeInput').value    = type;
-    document.getElementById('seasonInput').value  = s;
-    document.getElementById('episodeInput').value = e;
-    document.getElementById('srvInput').value     = srv;
-    toggleSeriesMeta();
-
-    var playerBox = document.getElementById('playerBox');
-
-    if (!id) {
-        playerBox.innerHTML = '<div class="h-full flex flex-col items-center justify-center text-purple-500/10"><span class="text-[9px] font-black uppercase tracking-[0.3em]">Wachten op ID...</span></div>';
-        renderHistory();
-        return;
+function changeServer(srvId) {
+    currentMedia.srv = String(srvId);
+    updateServerUI(currentMedia.srv);
+    
+    if (currentMedia.id) {
+        injectIframe();
+        saveToHistory(); 
     }
+}
 
-    var url     = buildPlayerURL(id, type, s, e, srv);
-    var refPol  = (srv !== '3') ? ' referrerpolicy="origin"' : '';
-
-    playerBox.innerHTML =
-        '<iframe src="' + url + '"' +
-        ' allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *"' +
-        ' allowfullscreen' + refPol +
-        ' scrolling="no"' +
-        ' style="width:100%;height:100%;border:none;display:block;">' +
-        '</iframe>';
-
-    /* fetch title/poster in background for history */
-    updateCard(id, type).then(function (title) {
-        saveToHistory(id, title || id, type, s, e, srv);
-        renderHistory();
+function updateServerUI(activeSrv) {
+    ['1','2','3'].forEach(id => {
+        let btn = document.getElementById('btn-srv-' + id);
+        if (btn) {
+            if (id === activeSrv) {
+                btn.className = 'srv-btn active';
+            } else {
+                btn.className = 'srv-btn inactive';
+            }
+        }
     });
 }
 
-function launchPlayerFromForm() {
-    var id = document.getElementById('imdbInput').value.trim();
-    if (!id) { showMsg('Voer een geldig IMDb- of TMDb-ID in.'); return; }
-    navigate('player', {
-        id:   id,
-        type: document.getElementById('typeInput').value,
-        s:    document.getElementById('seasonInput').value,
-        e:    document.getElementById('episodeInput').value,
-        srv:  document.getElementById('srvInput').value
+/* ─────────────────────────────────────────────────────────────
+   SEIZOEN & AFLEVERING GRID LOGICA
+───────────────────────────────────────────────────────────── */
+function renderSeasonDropdown(seasons) {
+    let select = document.getElementById('seasonSelect');
+    select.innerHTML = seasons.map(s => 
+        `<option value="${s.season_number}" ${s.season_number === currentMedia.currentSeason ? 'selected' : ''}>Seizoen ${s.season_number}</option>`
+    ).join('');
+}
+
+async function changeSeason() {
+    let newSeason = parseInt(document.getElementById('seasonSelect').value);
+    await loadSeasonAndPlay(newSeason, 1);
+}
+
+async function loadSeasonAndPlay(seasonNum, epNum) {
+    currentMedia.currentSeason = seasonNum;
+    currentMedia.currentEpisode = epNum;
+    
+    try {
+        // Gebruik ALTIJD de tmdbId voor seizoenen ophalen, nooit het IMDb tt... ID!
+        let res = await fetch(`https://api.themoviedb.org/3/tv/${currentMedia.tmdbId}/season/${seasonNum}?api_key=${TMDB_KEY}&language=nl-NL`);
+        let sData = await res.json();
+        let episodes = sData.episodes || [];
+        currentMedia.totalEpsInSeason = episodes.length || 1;
+        
+        document.getElementById('currentEpLabel').innerText = epNum;
+        document.getElementById('totalEpLabel').innerText = currentMedia.totalEpsInSeason;
+        
+        renderGrid(episodes);
+        injectIframe();
+        markAsWatched(seasonNum, epNum);
+        saveToHistory();
+        
+    } catch (err) {
+        console.error("Fout bij laden seizoen:", err);
+        document.getElementById('episodesContainer').innerHTML = '<div class="col-span-full text-slate-500 text-xs py-4 text-center">Fout bij ophalen afleveringen.</div>';
+        injectIframe(); 
+    }
+}
+
+function renderGrid(episodesData) {
+    let container = document.getElementById('episodesContainer');
+    let watchedMap = getWatchedEpisodes(currentMedia.id, currentMedia.currentSeason);
+    let today = new Date().toISOString().split('T')[0];
+
+    if (!episodesData || episodesData.length === 0) {
+        container.innerHTML = '<div class="col-span-full text-slate-500 text-xs py-4 text-center">Geen afleveringen gevonden voor dit seizoen.</div>';
+        return;
+    }
+
+    container.innerHTML = episodesData.map(ep => {
+        let epNum = ep.episode_number;
+        let isCurrent = (epNum === currentMedia.currentEpisode);
+        let isWatched = watchedMap.includes(epNum);
+        let hasAired = ep.air_date && ep.air_date <= today;
+
+        let btnClass = "ep-btn ";
+        let onClick = `onclick="playSpecificEpisode(${epNum})"`;
+
+        if (isCurrent) {
+            btnClass += "ep-current";
+        } else if (isWatched) {
+            btnClass += "ep-watched";
+        } else if (hasAired || !ep.air_date) {
+            btnClass += "ep-available";
+        } else {
+            btnClass += "ep-future";
+            onClick = `onclick="showMsg('Deze aflevering is nog niet uitgekomen.')"`;
+        }
+
+        return `<div ${onClick} class="${btnClass}">${epNum}</div>`;
+    }).join('');
+}
+
+function playSpecificEpisode(epNum) {
+    document.getElementById('currentEpLabel').innerText = epNum;
+    currentMedia.currentEpisode = epNum;
+    
+    markAsWatched(currentMedia.currentSeason, epNum);
+    
+    let container = document.getElementById('episodesContainer');
+    let buttons = container.querySelectorAll('.ep-btn');
+    let watchedMap = getWatchedEpisodes(currentMedia.id, currentMedia.currentSeason);
+    
+    buttons.forEach((btn, index) => {
+        let n = index + 1;
+        btn.className = "ep-btn " + 
+            (n === epNum ? "ep-current" : 
+             watchedMap.includes(n) ? "ep-watched" : 
+             btn.classList.contains("ep-future") ? "ep-future" : "ep-available");
     });
+
+    injectIframe();
+    saveToHistory();
+}
+
+function goNextEpisode() {
+    if (document.fullscreenElement) { document.exitFullscreen().catch(e => console.log(e)); } 
+    else if (document.webkitFullscreenElement) { document.webkitExitFullscreen().catch(e => console.log(e)); }
+
+    if (currentMedia.currentEpisode < currentMedia.totalEpsInSeason) {
+        playSpecificEpisode(currentMedia.currentEpisode + 1);
+    } else {
+        let seasonSelect = document.getElementById('seasonSelect');
+        if (currentMedia.currentSeason < seasonSelect.options.length) {
+            seasonSelect.value = currentMedia.currentSeason + 1;
+            changeSeason();
+        } else {
+            showMsg("Je bent helemaal bij! Dit was de laatste aflevering.");
+        }
+    }
+}
+
+window.addEventListener('message', function(e) {
+    if ((e.data === 'video_ended' || e.data?.event === 'ended') && document.getElementById('autoNextToggle').checked) {
+        goNextEpisode();
+    }
+});
+
+/* ─────────────────────────────────────────────────────────────
+   IFRAME INJECTIE
+───────────────────────────────────────────────────────────── */
+function injectIframe() {
+    // VidSrc pakt gelukkig wel gewoon de rauwe ID, of dat nou tt123 is of 456.
+    let { id, type, currentSeason, currentEpisode, srv } = currentMedia;
+    let isIMDb = String(id).startsWith('tt');
+    let idParam = isIMDb ? ('imdb=' + id) : ('tmdb=' + id);
+    let url = "";
+
+    if (srv === '1') {
+        url = type === 'movie' ? `https://vidsrc-embed.ru/embed/movie?${idParam}` 
+                               : `https://vidsrc-embed.ru/embed/tv?${idParam}&season=${currentSeason}&episode=${currentEpisode}`;
+    } else if (srv === '2') {
+        url = type === 'movie' ? `https://vidsrc-embed.su/embed/movie?${idParam}` 
+                               : `https://vidsrc-embed.su/embed/tv?${idParam}&season=${currentSeason}&episode=${currentEpisode}`;
+    } else {
+        url = type === 'movie' ? `https://embedmaster.link/movie/${id}` 
+                               : `https://embedmaster.link/tv/${id}/${currentSeason}/${currentEpisode}`;
+    }
+
+    let refPol = (srv !== '3') ? ' referrerpolicy="origin"' : '';
+    
+    document.getElementById('playerBox').innerHTML =
+        `<iframe src="${url}" allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *" allowfullscreen${refPol} scrolling="no"></iframe>`;
+}
+
+function getWatchedEpisodes(mediaId, season) {
+    let w = JSON.parse(localStorage.getItem('streammax_watched') || '{}');
+    if (!w[mediaId] || !w[mediaId][season]) return [];
+    return w[mediaId][season];
+}
+
+function markAsWatched(season, epNum) {
+    let w = JSON.parse(localStorage.getItem('streammax_watched') || '{}');
+    if (!w[currentMedia.id]) w[currentMedia.id] = {};
+    if (!w[currentMedia.id][season]) w[currentMedia.id][season] = [];
+    
+    if (!w[currentMedia.id][season].includes(epNum)) {
+        w[currentMedia.id][season].push(epNum);
+        localStorage.setItem('streammax_watched', JSON.stringify(w));
+    }
 }
 
 /* ─────────────────────────────────────────────────────────────
    HISTORY
 ───────────────────────────────────────────────────────────── */
-function saveToHistory(id, title, type, season, episode, srv) {
-    var h = {};
-    try { h = JSON.parse(localStorage.getItem('streammax_history')) || {}; } catch (_) {}
-    h[id] = {
-        title:   String(title).replace(/</g, '&lt;').replace(/>/g, '&gt;'),
-        type: type, season: season, episode: episode, srv: srv,
+function saveToHistory() {
+    let h = JSON.parse(localStorage.getItem('streammax_history') || '{}');
+    h[currentMedia.id] = {
+        title: currentMedia.title || currentMedia.id,
+        type: currentMedia.type, 
+        season: currentMedia.currentSeason, 
+        episode: currentMedia.currentEpisode, 
+        srv: currentMedia.srv,
         time: Date.now()
     };
     localStorage.setItem('streammax_history', JSON.stringify(h));
 }
 
 function renderHistory() {
-    var h = {};
-    try { h = JSON.parse(localStorage.getItem('streammax_history')) || {}; } catch (_) {}
-    var grid   = document.getElementById('historyGrid');
-    var sorted = Object.entries(h).sort(function (a, b) { return b[1].time - a[1].time; }).slice(0, 4);
+    let h = JSON.parse(localStorage.getItem('streammax_history') || '{}');
+    let grid = document.getElementById('historyGrid');
+    let sorted = Object.entries(h).sort((a, b) => b[1].time - a[1].time).slice(0, 4);
 
     if (!sorted.length) {
         grid.innerHTML = '<div class="col-span-2 text-center text-slate-600 text-[10px] uppercase font-bold py-4">Nog geen geschiedenis.</div>';
         return;
     }
 
-    grid.innerHTML = sorted.map(function (entry) {
-        var vid = entry[0], d = entry[1];
-        return '<a onclick="navigate(\'player\',{id:\'' + vid + '\',type:\'' + d.type + '\',s:\'' + (d.season || 1) + '\',e:\'' + (d.episode || 1) + '\',srv:\'' + (d.srv || 1) + '\'})" class="poster-card block bg-[#110826]">' +
-               '<img class="img-cover hist-' + vid + '" alt="">' +
-               '<div class="absolute inset-0 bg-gradient-to-t from-black via-transparent flex flex-col justify-end p-3">' +
-               '<p class="text-[10px] font-black text-white truncate">' + d.title + '</p>' +
-               '<p class="text-[8px] font-bold text-purple-400 uppercase mt-1">' +
-               (d.type === 'tv' ? 'S' + (d.season || 1) + ' E' + (d.episode || 1) : 'Film') +
-               '</p></div></a>';
+    grid.innerHTML = sorted.map(entry => {
+        let [vid, d] = entry;
+        let epText = d.type === 'tv' ? `S${d.season} E${d.episode}` : 'Film';
+        return `<a onclick="navigate('player',{id:'${vid}',type:'${d.type}',s:'${d.season}',e:'${d.episode}',srv:'${d.srv}'})" class="poster-card">
+                  <img class="img-cover hist-${vid}" alt="">
+                  <div class="absolute inset-0 bg-gradient-to-t from-[#05020a] via-transparent flex flex-col justify-end p-3">
+                    <p class="text-[10px] font-black text-white truncate drop-shadow-md">${d.title}</p>
+                    <p class="text-[9px] font-bold text-purple-400 uppercase mt-1 drop-shadow-md">${epText}</p>
+                  </div>
+                </a>`;
     }).join('');
 
-    sorted.forEach(function (entry) { updateCard(entry[0], entry[1].type, 'hist-'); });
+    sorted.forEach(entry => updateCardImage(entry[0], entry[1].type, `hist-${entry[0]}`));
 }
 
-/* ─────────────────────────────────────────────────────────────
-   TMDB CARD UPDATER  (used for history thumbnails)
-   Supports both IMDb (tt...) and numeric TMDb IDs.
-───────────────────────────────────────────────────────────── */
-async function updateCard(id, type, prefix) {
-    if (!id) return null;
-    prefix = prefix || 'img-';
+async function updateCardImage(id, type, className) {
     try {
-        var posterPath = null, title = null;
-        var r, d;
-
-        if (String(id).startsWith('tt')) {
-            r = await fetch('https://api.themoviedb.org/3/find/' + id + '?api_key=' + TMDB_KEY + '&external_source=imdb_id');
-            if (!r.ok) throw new Error('TMDB ' + r.status);
-            d = await r.json();
-            var item = (d.movie_results && d.movie_results[0]) || (d.tv_results && d.tv_results[0]);
-            if (item) { posterPath = item.poster_path; title = item.title || item.name; }
+        let ep = type === 'tv' ? 'tv' : 'movie';
+        if(String(id).startsWith('tt')){
+             let r = await fetch(`https://api.themoviedb.org/3/find/${id}?api_key=${TMDB_KEY}&external_source=imdb_id`);
+             let d = await r.json();
+             let item = (d.movie_results && d.movie_results[0]) || (d.tv_results && d.tv_results[0]);
+             if(item && item.poster_path){
+                 document.querySelectorAll('.' + className).forEach(img => {
+                    img.src = 'https://image.tmdb.org/t/p/w342' + item.poster_path;
+                    img.onload = () => img.classList.add('img-loaded');
+                 });
+             }
         } else {
-            var ep = (type === 'tv') ? 'tv' : 'movie';
-            r = await fetch('https://api.themoviedb.org/3/' + ep + '/' + id + '?api_key=' + TMDB_KEY);
-            if (!r.ok) throw new Error('TMDB ' + r.status);
-            d = await r.json();
-            if (d && !d.status_code) { posterPath = d.poster_path; title = d.title || d.name; }
+            let res = await fetch(`https://api.themoviedb.org/3/${ep}/${id}?api_key=${TMDB_KEY}`);
+            let data = await res.json();
+            if (data.poster_path) {
+                document.querySelectorAll('.' + className).forEach(img => {
+                    img.src = 'https://image.tmdb.org/t/p/w342' + data.poster_path;
+                    img.onload = () => img.classList.add('img-loaded');
+                });
+            }
         }
-
-        if (posterPath) {
-            document.querySelectorAll('.' + prefix + id).forEach(function (img) {
-                img.src = 'https://image.tmdb.org/t/p/w342' + posterPath;
-                img.onload = function () { img.classList.add('img-loaded'); };
-            });
-        }
-        return title || null;
-    } catch (err) {
-        console.warn('[StreamMax] updateCard:', err.message);
-        return null;
-    }
+    } catch (err) {}
 }
 
 /* ─────────────────────────────────────────────────────────────
-   LATEST GRID
-   Uses TMDB trending/airing endpoints — proper CORS,
-   poster already in response (no extra fetch needed).
-   ─────────────────────────────────────────────────────────────
-   Films  → trending movies this week
-   Series → trending TV shows this week
-   Nieuw  → TV shows with new episodes airing today
+   GRIDS LATEST & ZOEKEN
 ───────────────────────────────────────────────────────────── */
 async function loadLatest(targetView) {
-    var grid   = document.getElementById('latestGrid');
-    var loader = document.getElementById('gridLoader');
+    let grid = document.getElementById('latestGrid');
+    let loader = document.getElementById('gridLoader');
     grid.innerHTML = '';
     loader.classList.remove('hidden');
 
-    var mType = (targetView === 'latest_movies') ? 'movie' : 'tv';
+    let mType = (targetView === 'latest_movies') ? 'movie' : 'tv';
 
     try {
-        var res = await fetch(API_URLS[targetView]);
-        if (!res.ok) throw new Error('HTTP ' + res.status + ' — controleer je TMDB API-sleutel');
-        var data = await res.json();
-        var items = data.results || [];
-
-        if (items.length > 0) {
-            grid.innerHTML = items.map(function (item) {
-                var tmdbId = String(item.id);
-                var title  = (item.title || item.name || 'Onbekend').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                var poster = item.poster_path
-                    ? 'https://image.tmdb.org/t/p/w342' + item.poster_path
-                    : '';
-                var imgHtml = poster
-                    ? '<img src="' + poster + '" class="img-cover img-loaded" loading="lazy" alt="' + title + '">'
-                    : '<div class="w-full h-full flex items-center justify-center text-[8px] text-gray-600 p-2 text-center font-bold uppercase">' + title + '</div>';
-
-                return '<a onclick="navigate(\'player\',{id:\'' + tmdbId + '\',type:\'' + mType + '\'})" class="poster-card block">' +
-                       imgHtml +
-                       '<div class="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent"></div>' +
-                       '<div class="absolute bottom-0 left-0 right-0 p-3">' +
-                       '<p class="text-[10px] font-black text-white truncate">' + title + '</p>' +
-                       '</div></a>';
-            }).join('');
+        let res = await fetch(API_URLS[targetView]);
+        let data = await res.json();
+        
+        if (data.results && data.results.length > 0) {
+            grid.innerHTML = data.results.map(item => createPosterHTML(item, mType)).join('');
         } else {
-            grid.innerHTML = '<div class="col-span-2 text-center text-yellow-500 text-xs py-6 font-bold uppercase">Geen resultaten — controleer je TMDB API-sleutel.</div>';
+            grid.innerHTML = '<div class="col-span-full text-center text-yellow-500 text-xs py-6 font-bold uppercase">Geen resultaten.</div>';
         }
     } catch (err) {
-        console.error('[StreamMax] loadLatest:', err.message);
-        grid.innerHTML =
-            '<div class="col-span-2 py-6 text-center">' +
-            '<p class="text-red-500 text-xs font-bold uppercase">Fout bij laden</p>' +
-            '<p class="text-slate-500 text-[10px] mt-1">' + err.message + '</p>' +
-            '<p class="text-slate-600 text-[9px] mt-3">Vervang TMDB_KEY bovenin de code door jouw eigen gratis sleutel:<br>' +
-            '<span class="text-purple-400">themoviedb.org → Settings → API</span></p>' +
-            '</div>';
+        grid.innerHTML = `<div class="col-span-full py-6 text-center text-red-500 text-xs font-bold uppercase">Fout bij laden.</div>`;
     } finally {
         loader.classList.add('hidden');
     }
 }
 
-/* ─────────────────────────────────────────────────────────────
-   SEARCH
-───────────────────────────────────────────────────────────── */
 function handleSearchEnter(e) { if (e.key === 'Enter') performSearch(); }
 
 async function performSearch() {
-    var query = document.getElementById('searchInput').value.trim();
+    let query = document.getElementById('searchInput').value.trim();
     if (!query) return;
 
-    var grid   = document.getElementById('searchGrid');
-    var loader = document.getElementById('searchLoader');
+    let grid = document.getElementById('searchGrid');
+    let loader = document.getElementById('searchLoader');
     grid.innerHTML = '';
     loader.classList.remove('hidden');
 
     try {
-        var res = await fetch('https://api.themoviedb.org/3/search/multi?api_key=' + TMDB_KEY + '&query=' + encodeURIComponent(query) + '&language=nl-NL');
-        if (!res.ok) throw new Error('TMDB HTTP ' + res.status + ' — controleer je API-sleutel');
-        var data = await res.json();
-        var results = (data.results || []).filter(function (i) {
-            return i.media_type === 'movie' || i.media_type === 'tv';
-        });
+        let res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&language=nl-NL`);
+        let data = await res.json();
+        let results = (data.results || []).filter(i => i.media_type === 'movie' || i.media_type === 'tv');
 
         if (results.length > 0) {
-            grid.innerHTML = results.map(function (item) {
-                var title     = (item.title || item.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;');
-                var typeLabel = item.media_type === 'tv' ? 'Serie' : 'Film';
-                var imgHtml   = item.poster_path
-                    ? '<img src="https://image.tmdb.org/t/p/w342' + item.poster_path + '" class="img-cover img-loaded" loading="lazy" alt="' + title + '">'
-                    : '<div class="w-full h-full flex items-center justify-center text-[8px] text-gray-600 p-2 text-center font-bold uppercase">' + title + '</div>';
-
-                return '<a onclick="playFromSearch(' + item.id + ',\'' + item.media_type + '\')" class="poster-card block">' +
-                       imgHtml +
-                       '<div class="absolute inset-0 bg-gradient-to-t from-black via-transparent flex flex-col justify-end p-3">' +
-                       '<p class="text-[10px] font-black text-white truncate">' + title + '</p>' +
-                       '<p class="text-[8px] font-bold text-purple-400 uppercase mt-1">' + typeLabel + '</p>' +
-                       '</div></a>';
-            }).join('');
+            grid.innerHTML = results.map(item => createPosterHTML(item, item.media_type)).join('');
         } else {
-            grid.innerHTML = '<div class="col-span-2 text-center text-slate-500 text-xs py-6 uppercase font-bold">Niets gevonden voor &ldquo;' + query.replace(/</g, '&lt;') + '&rdquo;</div>';
+            grid.innerHTML = `<div class="col-span-full text-center text-slate-500 text-xs py-6 font-bold uppercase">Niets gevonden voor "${query}".</div>`;
         }
     } catch (err) {
-        console.error('[StreamMax] search:', err.message);
-        grid.innerHTML =
-            '<div class="col-span-2 py-6 text-center">' +
-            '<p class="text-red-500 text-xs font-bold uppercase">Zoekfout</p>' +
-            '<p class="text-slate-500 text-[10px] mt-1">' + err.message + '</p>' +
-            '</div>';
+        grid.innerHTML = `<div class="col-span-full py-6 text-center text-red-500 text-xs font-bold uppercase">Fout bij zoeken.</div>`;
     } finally {
         loader.classList.add('hidden');
     }
 }
 
-/* ─────────────────────────────────────────────────────────────
-   PLAY FROM SEARCH
-   We already have the TMDb ID from the search result.
-   VidSrc docs confirm ?tmdb=ID works for all embed types,
-   so no extra external_ids API call is needed here.
-───────────────────────────────────────────────────────────── */
-function playFromSearch(tmdbId, mediaType) {
-    navigate('player', { id: String(tmdbId), type: mediaType });
+function createPosterHTML(item, mediaType) {
+    let title = (item.title || item.name || 'Onbekend').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    let imgHtml = item.poster_path 
+        ? `<img src="https://image.tmdb.org/t/p/w342${item.poster_path}" class="img-cover img-loaded" loading="lazy">`
+        : `<div class="w-full h-full flex items-center justify-center text-[8px] text-gray-600 p-2 text-center font-bold uppercase">${title}</div>`;
+
+    return `<a onclick="navigate('player', {id: '${item.id}', type: '${mediaType}'})" class="poster-card">
+              ${imgHtml}
+              <div class="absolute inset-0 bg-gradient-to-t from-[#05020a]/90 via-transparent flex flex-col justify-end p-3">
+                 <p class="text-[10px] font-black text-white truncate shadow-black">${title}</p>
+                 <p class="text-[8px] font-bold text-purple-400 uppercase mt-1">${mediaType === 'tv' ? 'Serie' : 'Film'}</p>
+              </div>
+            </a>`;
 }
 
 /* ─────────────────────────────────────────────────────────────
-   BOOT
+   STARTUP
 ───────────────────────────────────────────────────────────── */
 navigate('player');
 </script>
 </body>
 </html>
+
