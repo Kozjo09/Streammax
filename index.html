@@ -63,7 +63,10 @@
                 <div class="flex items-center justify-between mt-3 bg-[#110826] p-3 rounded-xl border border-purple-500/20">
                     <div class="flex flex-col">
                         <span class="text-[9px] font-black uppercase tracking-widest text-slate-500">Jouw Status</span>
-                        <span id="mediaStats" class="text-xs font-bold text-purple-400 mt-1">Watching - Ep <span id="currentEpLabel">1</span> / <span id="totalEpLabel">?</span></span>
+                        <span class="text-xs font-bold text-purple-400 mt-1">
+                            <span id="tvStats">Watching - Ep <span id="currentEpLabel">1</span> / <span id="totalEpLabel">?</span></span>
+                            <span id="movieStats" class="hidden">Speelduur: <span id="runtimeLabel">?</span> min</span>
+                        </span>
                     </div>
                     <span id="mediaBadge" class="bg-purple-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-md tracking-widest">Serie</span>
                 </div>
@@ -153,8 +156,8 @@ const API_URLS = {
     latest_episodes: 'https://api.themoviedb.org/3/tv/airing_today?api_key='     + TMDB_KEY + '&language=nl-NL'
 };
 
-// tmdbId is toegevoegd aan de state om IMDb vertalingen op te slaan
-let currentMedia = { id: null, tmdbId: null, type: null, title: "", totalSeasons: 1, currentSeason: 1, currentEpisode: 1, totalEpsInSeason: 1, srv: "1" };
+// Start seizoen op 0 gezet voor de slimme detectie later
+let currentMedia = { id: null, tmdbId: null, type: null, title: "", totalSeasons: 1, currentSeason: 0, currentEpisode: 1, totalEpsInSeason: 1, srv: "1" };
 
 /* popup blocker */
 (function () {
@@ -200,7 +203,7 @@ function showMsg(text) {
 function closeMsg() { document.getElementById('msgBox').classList.add('hidden'); }
 
 /* ─────────────────────────────────────────────────────────────
-   PLAYER INITIALISATIE (Met IMDb naar TMDb Vertaler)
+   PLAYER INITIALISATIE 
 ───────────────────────────────────────────────────────────── */
 async function initPlayerContent(params) {
     if (!params.id) return;
@@ -208,9 +211,9 @@ async function initPlayerContent(params) {
     let defaultSrv = (params.id && !params.srv) ? '1' : (params.srv || '1');
 
     currentMedia.id = String(params.id).trim();
-    currentMedia.tmdbId = currentMedia.id; // Standaard gelijk, tenzij we het updaten
+    currentMedia.tmdbId = currentMedia.id;
     currentMedia.type = params.type || 'movie';
-    currentMedia.currentSeason = parseInt(params.s) || 1;
+    currentMedia.currentSeason = parseInt(params.s) || 0; // 0 Forceert de slimme detectie
     currentMedia.currentEpisode = parseInt(params.e) || 1;
     currentMedia.srv = defaultSrv;
 
@@ -225,7 +228,6 @@ async function initPlayerContent(params) {
     document.getElementById('mediaBadge').innerText = currentMedia.type === 'tv' ? 'Serie' : 'Film';
 
     try {
-        // VERTALER: Zet een 'tt' IMDb ID om naar een numeriek TMDb ID!
         if (currentMedia.id.startsWith('tt')) {
             let findRes = await fetch(`https://api.themoviedb.org/3/find/${currentMedia.id}?api_key=${TMDB_KEY}&external_source=imdb_id`);
             let findData = await findRes.json();
@@ -235,7 +237,6 @@ async function initPlayerContent(params) {
             }
         }
 
-        // Haal de echte info op via het (eventueel vertaalde) TMDb ID
         let epInfo = currentMedia.type === 'tv' ? 'tv' : 'movie';
         let res = await fetch(`https://api.themoviedb.org/3/${epInfo}/${currentMedia.tmdbId}?api_key=${TMDB_KEY}&language=nl-NL`);
         let data = await res.json();
@@ -246,6 +247,10 @@ async function initPlayerContent(params) {
         document.getElementById('mediaTitle').innerText = currentMedia.title;
 
         if (currentMedia.type === 'tv') {
+            // Fix voor de DOM crasht: toon TV stats, verberg Movie stats
+            document.getElementById('tvStats').classList.remove('hidden');
+            document.getElementById('movieStats').classList.add('hidden');
+
             document.getElementById('tvEpisodesSection').classList.remove('hidden');
             document.getElementById('tvControls').classList.remove('hidden');
             
@@ -253,18 +258,28 @@ async function initPlayerContent(params) {
             currentMedia.totalSeasons = validSeasons.length || 1;
             
             if (validSeasons.length > 0) {
+                // Als seizoen 0 is (of onbekend), pak het eerste geldige seizoen
+                if (currentMedia.currentSeason === 0 || !validSeasons.find(s => s.season_number === currentMedia.currentSeason)) {
+                    currentMedia.currentSeason = validSeasons[0].season_number;
+                }
                 renderSeasonDropdown(validSeasons);
+            } else {
+                if (currentMedia.currentSeason === 0) currentMedia.currentSeason = 1;
             }
+            
             await loadSeasonAndPlay(currentMedia.currentSeason, currentMedia.currentEpisode);
         } else {
-            document.getElementById('mediaStats').innerHTML = `<span class="text-purple-400">Speelduur: ${data.runtime || '?'} min</span>`;
+            // Fix voor de DOM crash: verberg TV stats, toon Movie stats veilig
+            document.getElementById('tvStats').classList.add('hidden');
+            document.getElementById('movieStats').classList.remove('hidden');
+            document.getElementById('runtimeLabel').innerText = data.runtime || '?';
+
             injectIframe();
             saveToHistory();
         }
     } catch (err) {
         console.error("Fout bij ophalen TMDB info:", err);
         document.getElementById('mediaTitle').innerText = "Titel Onbekend / Ongeldig ID";
-        // Fallback: Probeer de speler alsnog te forceren met het rauwe ID
         injectIframe();
         saveToHistory();
     }
@@ -325,10 +340,18 @@ async function loadSeasonAndPlay(seasonNum, epNum) {
     currentMedia.currentSeason = seasonNum;
     currentMedia.currentEpisode = epNum;
     
+    let container = document.getElementById('episodesContainer');
+    container.innerHTML = '<div class="col-span-full text-purple-500 text-xs py-4 text-center tracking-widest uppercase font-bold">Data ophalen...</div>';
+    
     try {
-        // Gebruik ALTIJD de tmdbId voor seizoenen ophalen, nooit het IMDb tt... ID!
-        let res = await fetch(`https://api.themoviedb.org/3/tv/${currentMedia.tmdbId}/season/${seasonNum}?api_key=${TMDB_KEY}&language=nl-NL`);
+        let timestamp = new Date().getTime();
+        let res = await fetch(`https://api.themoviedb.org/3/tv/${currentMedia.tmdbId}/season/${seasonNum}?api_key=${TMDB_KEY}&language=nl-NL&_cb=${timestamp}`);
         let sData = await res.json();
+        
+        if (sData.success === false || sData.status_code) {
+            throw new Error(sData.status_message || `TMDb Foutcode: ${sData.status_code}`);
+        }
+
         let episodes = sData.episodes || [];
         currentMedia.totalEpsInSeason = episodes.length || 1;
         
@@ -342,7 +365,16 @@ async function loadSeasonAndPlay(seasonNum, epNum) {
         
     } catch (err) {
         console.error("Fout bij laden seizoen:", err);
-        document.getElementById('episodesContainer').innerHTML = '<div class="col-span-full text-slate-500 text-xs py-4 text-center">Fout bij ophalen afleveringen.</div>';
+        container.innerHTML = `
+            <div class="col-span-full flex flex-col items-center justify-center py-6 gap-3">
+                <span class="text-[#f87171] text-[10px] font-bold uppercase tracking-widest text-center px-4">
+                    Mislukt: ${err.message}
+                </span>
+                <button onclick="loadSeasonAndPlay(${seasonNum}, ${epNum})" class="bg-[#2a1354] hover:bg-purple-600 text-purple-200 hover:text-white text-[10px] font-black uppercase tracking-widest py-3 px-5 rounded-xl transition-colors border border-purple-500/30 shadow-lg flex items-center gap-2">
+                    <span class="text-lg leading-none">&#x21bb;</span> Opnieuw Proberen
+                </button>
+            </div>
+        `;
         injectIframe(); 
     }
 }
@@ -430,7 +462,6 @@ window.addEventListener('message', function(e) {
    IFRAME INJECTIE
 ───────────────────────────────────────────────────────────── */
 function injectIframe() {
-    // VidSrc pakt gelukkig wel gewoon de rauwe ID, of dat nou tt123 is of 456.
     let { id, type, currentSeason, currentEpisode, srv } = currentMedia;
     let isIMDb = String(id).startsWith('tt');
     let idParam = isIMDb ? ('imdb=' + id) : ('tmdb=' + id);
