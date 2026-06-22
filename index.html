@@ -159,12 +159,21 @@ const API_URLS = {
 // Start seizoen op 0 gezet voor de slimme detectie later
 let currentMedia = { id: null, tmdbId: null, type: null, title: "", totalSeasons: 1, currentSeason: 0, currentEpisode: 1, totalEpsInSeason: 1, srv: "1" };
 
-/* popup blocker */
+/* Slimme popup blocker om speler-crashes aan het einde van video's te voorkomen */
 (function () {
     const _orig = window.open;
     window.open = function (url) {
         if (!url || url === '' || url === 'about:blank') return _orig.apply(this, arguments);
-        return null;
+        
+        // Retourneer een nep-window object in plaats van null. 
+        // Dit voorkomt dat ad-scripts crashen en de UI van de player bevriezen.
+        return {
+            focus: function() {},
+            blur: function() {},
+            close: function() {},
+            location: { href: "" },
+            document: {}
+        };
     };
 })();
 
@@ -480,6 +489,7 @@ function injectIframe() {
 
     let refPol = (srv !== '3') ? ' referrerpolicy="origin"' : '';
     
+    // Sandbox weggelaten om blokkades te voorkomen, fake window vangt de rest op.
     document.getElementById('playerBox').innerHTML =
         `<iframe src="${url}" allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *" allowfullscreen${refPol} scrolling="no"></iframe>`;
 }
@@ -645,4 +655,3 @@ navigate('player');
 </script>
 </body>
 </html>
-
