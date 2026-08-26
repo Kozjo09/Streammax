@@ -105,6 +105,8 @@
                     </div>
             </div>
 
+            <div id="relatedSection" class="hidden mb-8"></div>
+
             <div class="bg-[#0e071b] p-4 rounded-2xl border border-purple-500/10 mb-8 mt-2">
                 <h3 class="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3">Titel Handmatig Invoeren</h3>
                 <div class="flex gap-2 mb-3">
@@ -234,6 +236,8 @@ async function initPlayerContent(params) {
     document.getElementById('mediaTitle').innerText = "Gegevens Ophalen...";
     document.getElementById('tvEpisodesSection').classList.add('hidden');
     document.getElementById('tvControls').classList.add('hidden');
+    document.getElementById('relatedSection').classList.add('hidden');
+    document.getElementById('relatedSection').innerHTML = '';
     document.getElementById('mediaBadge').innerText = currentMedia.type === 'tv' ? 'Serie' : 'Film';
 
     try {
@@ -286,11 +290,91 @@ async function initPlayerContent(params) {
             injectIframe();
             saveToHistory();
         }
+
+        loadRelatedContent(currentMedia.tmdbId, currentMedia.type, data);
     } catch (err) {
         console.error("Fout bij ophalen TMDB info:", err);
         document.getElementById('mediaTitle').innerText = "Titel Onbekend / Ongeldig ID";
         injectIframe();
         saveToHistory();
+    }
+}
+
+async function loadRelatedContent(tmdbId, type, data) {
+    let relatedContainer = document.getElementById('relatedSection');
+    relatedContainer.innerHTML = '';
+
+    let htmlContent = '';
+    let hasContent = false;
+
+    // 1. Check Franchise (Collection) voor films
+    if (type === 'movie' && data && data.belongs_to_collection) {
+        try {
+            let colRes = await fetch(`https://api.themoviedb.org/3/collection/${data.belongs_to_collection.id}?api_key=${TMDB_KEY}&language=nl-NL`);
+            let colData = await colRes.json();
+
+            if (colData && colData.parts && colData.parts.length > 1) {
+                // Sorteer films chronologisch op releasedatum
+                let sortedParts = colData.parts.sort((a, b) => {
+                    let dateA = a.release_date || '9999-12-31';
+                    let dateB = b.release_date || '9999-12-31';
+                    return dateA.localeCompare(dateB);
+                });
+
+                let currentIndex = sortedParts.findIndex(item => String(item.id) === String(tmdbId));
+
+                if (currentIndex !== -1) {
+                    let prequels = sortedParts.slice(0, currentIndex);
+                    let sequels = sortedParts.slice(currentIndex + 1);
+
+                    if (prequels.length > 0) {
+                        hasContent = true;
+                        htmlContent += `<div class="mb-6">
+                            <h2 class="text-[10px] font-black uppercase text-slate-500 mb-3 tracking-widest">Prequels</h2>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                ${prequels.map((item, idx) => createPosterHTML(item, 'movie', `Prequel ${idx + 1}`)).join('')}
+                            </div>
+                        </div>`;
+                    }
+
+                    if (sequels.length > 0) {
+                        hasContent = true;
+                        htmlContent += `<div class="mb-6">
+                            <h2 class="text-[10px] font-black uppercase text-slate-500 mb-3 tracking-widest">Sequels</h2>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                ${sequels.map((item, idx) => createPosterHTML(item, 'movie', `Sequel ${currentIndex + 2 + idx}`)).join('')}
+                            </div>
+                        </div>`;
+                    }
+                }
+            }
+        } catch (colErr) {
+            console.error("Fout bij ophalen collectie:", colErr);
+        }
+    }
+
+    // 2. Recommendations / Gerelateerde Titels
+    try {
+        let recRes = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}/recommendations?api_key=${TMDB_KEY}&language=nl-NL`);
+        let recData = await recRes.json();
+        let recs = (recData.results || []).filter(item => String(item.id) !== String(tmdbId)).slice(0, 6);
+
+        if (recs.length > 0) {
+            hasContent = true;
+            htmlContent += `<div class="mb-2">
+                <h2 class="text-[10px] font-black uppercase text-slate-500 mb-3 tracking-widest">Gerelateerd & Aanbevolen</h2>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    ${recs.map(item => createPosterHTML(item, type)).join('')}
+                </div>
+            </div>`;
+        }
+    } catch (recErr) {
+        console.error("Fout bij ophalen aanbevelingen:", recErr);
+    }
+
+    if (hasContent) {
+        relatedContainer.innerHTML = htmlContent;
+        relatedContainer.classList.remove('hidden');
     }
 }
 
@@ -633,17 +717,19 @@ async function performSearch() {
     }
 }
 
-function createPosterHTML(item, mediaType) {
+function createPosterHTML(item, mediaType, customBadge) {
     let title = (item.title || item.name || 'Onbekend').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     let imgHtml = item.poster_path 
         ? `<img src="https://image.tmdb.org/t/p/w342${item.poster_path}" class="img-cover img-loaded" loading="lazy">`
         : `<div class="w-full h-full flex items-center justify-center text-[8px] text-gray-600 p-2 text-center font-bold uppercase">${title}</div>`;
 
+    let badgeText = customBadge || (mediaType === 'tv' ? 'Serie' : 'Film');
+
     return `<a onclick="navigate('player', {id: '${item.id}', type: '${mediaType}'})" class="poster-card">
               ${imgHtml}
               <div class="absolute inset-0 bg-gradient-to-t from-[#05020a]/90 via-transparent flex flex-col justify-end p-3">
                  <p class="text-[10px] font-black text-white truncate shadow-black">${title}</p>
-                 <p class="text-[8px] font-bold text-purple-400 uppercase mt-1">${mediaType === 'tv' ? 'Serie' : 'Film'}</p>
+                 <p class="text-[8px] font-bold text-purple-400 uppercase mt-1">${badgeText}</p>
               </div>
             </a>`;
 }
