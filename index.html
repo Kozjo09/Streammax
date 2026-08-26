@@ -72,6 +72,8 @@
                 </div>
             </div>
 
+            <div id="mediaInfoSection" class="hidden mb-6 bg-[#0e071b] p-4 rounded-2xl border border-purple-500/10"></div>
+
             <div class="player-box mb-3 shadow-2xl shadow-purple-900/20" id="playerBox">
                 <div class="h-full flex flex-col items-center justify-center text-purple-500/10">
                     <span class="text-[9px] font-black uppercase tracking-[0.3em]">Selecteer een titel...</span>
@@ -238,6 +240,8 @@ async function initPlayerContent(params) {
     document.getElementById('tvControls').classList.add('hidden');
     document.getElementById('relatedSection').classList.add('hidden');
     document.getElementById('relatedSection').innerHTML = '';
+    document.getElementById('mediaInfoSection').classList.add('hidden');
+    document.getElementById('mediaInfoSection').innerHTML = '';
     document.getElementById('mediaBadge').innerText = currentMedia.type === 'tv' ? 'Serie' : 'Film';
 
     try {
@@ -253,11 +257,16 @@ async function initPlayerContent(params) {
         let epInfo = currentMedia.type === 'tv' ? 'tv' : 'movie';
         let res = await fetch(`https://api.themoviedb.org/3/${epInfo}/${currentMedia.tmdbId}?api_key=${TMDB_KEY}&language=nl-NL`);
         let data = await res.json();
+
+        let creditsRes = await fetch(`https://api.themoviedb.org/3/${epInfo}/${currentMedia.tmdbId}/credits?api_key=${TMDB_KEY}&language=nl-NL`);
+        let creditsData = await creditsRes.json().catch(() => null);
         
         if (data.status_code === 34) throw new Error("Titel niet gevonden in database.");
 
         currentMedia.title = data.title || data.name || "Onbekende Titel";
         document.getElementById('mediaTitle').innerText = currentMedia.title;
+
+        renderMediaDetailsAndCast(data, creditsData);
 
         if (currentMedia.type === 'tv') {
             // Fix voor de DOM crasht: toon TV stats, verberg Movie stats
@@ -298,6 +307,55 @@ async function initPlayerContent(params) {
         injectIframe();
         saveToHistory();
     }
+}
+
+function renderMediaDetailsAndCast(data, creditsData) {
+    let container = document.getElementById('mediaInfoSection');
+    if (!data) return;
+
+    let overview = data.overview || "Geen beschrijving beschikbaar.";
+    let releaseDate = data.release_date || data.first_air_date || "";
+    let year = releaseDate ? releaseDate.split('-')[0] : "";
+    let rating = data.vote_average ? data.vote_average.toFixed(1) : "";
+    let genres = (data.genres || []).map(g => `<span class="bg-[#1a0c3b] text-purple-300 text-[9px] font-bold px-2 py-1 rounded-md border border-purple-500/20">${g.name}</span>`).join(' ');
+
+    let castHtml = '';
+    if (creditsData && creditsData.cast && creditsData.cast.length > 0) {
+        let topCast = creditsData.cast.slice(0, 6);
+        castHtml = `
+            <div class="mt-4 pt-4 border-t border-purple-500/10">
+                <h3 class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Cast & Personages</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    ${topCast.map(actor => {
+                        let img = actor.profile_path
+                            ? `<img src="https://image.tmdb.org/t/p/w185${actor.profile_path}" class="w-10 h-10 object-cover rounded-full flex-shrink-0">`
+                            : `<div class="w-10 h-10 bg-[#110826] rounded-full flex items-center justify-center text-[10px] font-bold text-slate-500 flex-shrink-0">?</div>`;
+                        let name = (actor.name || "Onbekend").replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        let char = (actor.character || "").replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        return `<div class="flex items-center gap-2 bg-[#110826] p-2 rounded-xl border border-purple-500/10">
+                            ${img}
+                            <div class="overflow-hidden">
+                                <p class="text-[10px] font-bold text-white truncate">${name}</p>
+                                <p class="text-[8px] font-bold text-purple-400 truncate">${char ? 'als ' + char : ''}</p>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = `
+        <div class="flex items-center gap-2 mb-2 flex-wrap">
+            ${year ? `<span class="text-xs font-bold text-slate-400">${year}</span>` : ''}
+            ${rating ? `<span class="text-xs font-bold text-amber-400">★ ${rating}</span>` : ''}
+            <div class="flex gap-1 flex-wrap">${genres}</div>
+        </div>
+        <p class="text-xs font-medium text-slate-300 leading-relaxed">${overview}</p>
+        ${castHtml}
+    `;
+
+    container.classList.remove('hidden');
 }
 
 async function loadRelatedContent(tmdbId, type, data) {
