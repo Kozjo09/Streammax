@@ -586,19 +586,38 @@ function removeHistoryItem(e, vid) {
 /* ─────────────────────────────────────────────────────────────
    SEARCH PAGE
 ───────────────────────────────────────────────────────────── */
+let searchDebounceTimeout = null;
+
 function renderSearchPage() {
     const main = document.getElementById('content');
     main.innerHTML = `
         <div class="space-y-6">
             <div class="relative max-w-2xl 2xl:max-w-4xl 3xl:max-w-5xl mx-auto">
                 <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
-                <input type="text" id="search-page-input" onkeypress="if(event.key==='Enter') performSearchPage()" placeholder="Zoek een film of serie..." class="w-full bg-[#110826] border border-purple-500/20 py-4 pl-12 pr-4 rounded-2xl text-white font-bold text-sm outline-none focus:border-purple-500 transition-colors shadow-2xl" autofocus>
+                <input type="text" id="search-page-input" oninput="handleSearchInput()" placeholder="Zoek een film of serie..." class="w-full bg-[#110826] border border-purple-500/20 py-4 pl-12 pr-4 rounded-2xl text-white font-bold text-sm outline-none focus:border-purple-500 transition-colors shadow-2xl" autofocus>
             </div>
             <div id="search-page-grid" class="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 gap-3 sm:gap-4">
-                <p class="col-span-full text-center text-slate-500 text-xs mt-10">Typ een zoekopdracht en druk op Enter...</p>
+                <p class="col-span-full text-center text-slate-500 text-xs mt-10">Begin met typen om te zoeken...</p>
             </div>
         </div>
     `;
+}
+
+function handleSearchInput() {
+    clearTimeout(searchDebounceTimeout);
+    const input = document.getElementById('search-page-input');
+    if (!input) return;
+    const query = input.value.trim();
+    if (!query) {
+        const grid = document.getElementById('search-page-grid');
+        if (grid) {
+            grid.innerHTML = '<p class="col-span-full text-center text-slate-500 text-xs mt-10">Begin met typen om te zoeken...</p>';
+        }
+        return;
+    }
+    searchDebounceTimeout = setTimeout(() => {
+        performSearchPage();
+    }, 300);
 }
 
 async function performSearchPage() {
@@ -943,78 +962,96 @@ function manualLoad() {
     nav('player', { id: inputId, type: inputType });
 }
 
+async function getComprehensiveRelated(tmdbId, type, data) {
+    let itemsMap = new Map();
+
+    const addItem = (item, mediaType, isFranchise = false) => {
+        if (!item || !item.id) return;
+        let key = `${mediaType || item.media_type || type}_${item.id}`;
+        if (String(item.id) === String(tmdbId) && (item.media_type || type) === type) return;
+        if (!itemsMap.has(key)) {
+            itemsMap.set(key, {
+                ...item,
+                media_type: mediaType || item.media_type || type,
+                isFranchise: isFranchise
+            });
+        }
+    };
+
+    // 1. Movie collection parts
+    if (type === 'movie' && data && data.belongs_to_collection) {
+        try {
+            let colRes = await fetch(`https://api.themoviedb.org/3/collection/${data.belongs_to_collection.id}?api_key=${TMDB_KEY}&language=nl-NL`);
+            let colData = await colRes.json();
+            if (colData && colData.parts) {
+                colData.parts.forEach(part => addItem(part, 'movie', true));
+            }
+        } catch (e) {}
+    }
+
+    // 2. Extract franchise keywords from title
+    let title = (data.title || data.name || '').trim();
+    let cleanTitle = title.replace(/^(the|de|het|a|an|la|le|les|el)\s+/i, '').replace(/:\s*.*$/, '');
+    let stopWords = new Set(['the', 'de', 'het', 'a', 'an', 'and', 'en', 'of', 'in', 'on', 'for', 'to', 'clash', 'movie', 'series', 'returns', 'reborn', 'rises']);
+    let words = cleanTitle.split(/\s+/).map(w => w.replace(/[^\w]/g, '')).filter(w => w.length > 2 && !stopWords.has(w.toLowerCase()));
+
+    let franchiseKeyword = words[0] || cleanTitle;
+
+    if (franchiseKeyword && franchiseKeyword.length > 2) {
+        try {
+            let searchRes = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(franchiseKeyword)}&language=nl-NL`);
+            let searchData = await searchRes.json();
+            if (searchData && searchData.results) {
+                searchData.results.forEach(item => {
+                    if (item.media_type === 'movie' || item.media_type === 'tv') {
+                        let itemTitle = (item.title || item.name || '').toLowerCase();
+                        if (itemTitle.includes(franchiseKeyword.toLowerCase())) {
+                            addItem(item, item.media_type, true);
+                        }
+                    }
+                });
+            }
+        } catch (e) {}
+    }
+
+    // 3. TMDb Recommendations
+    try {
+        let recRes = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}/recommendations?api_key=${TMDB_KEY}&language=nl-NL`);
+        let recData = await recRes.json();
+        if (recData && recData.results) {
+            recData.results.forEach(item => addItem(item, type, false));
+        }
+    } catch (e) {}
+
+    // 4. TMDb Similar
+    try {
+        let simRes = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}/similar?api_key=${TMDB_KEY}&language=nl-NL`);
+        let simData = await simRes.json();
+        if (simData && simData.results) {
+            simData.results.forEach(item => addItem(item, type, false));
+        }
+    } catch (e) {}
+
+    let allItems = Array.from(itemsMap.values());
+    allItems.sort((a, b) => (b.isFranchise ? 1 : 0) - (a.isFranchise ? 1 : 0));
+    return allItems;
+}
+
 async function loadRelatedContent(tmdbId, type, data) {
     let relatedContainer = document.getElementById('relatedSection');
     if (!relatedContainer) return;
     relatedContainer.innerHTML = '';
 
-    let htmlContent = '';
-    let hasContent = false;
+    let items = await getComprehensiveRelated(tmdbId, type, data);
+    let itemsToDisplay = items.slice(0, 12);
 
-    if (type === 'movie' && data && data.belongs_to_collection) {
-        try {
-            let colRes = await fetch(`https://api.themoviedb.org/3/collection/${data.belongs_to_collection.id}?api_key=${TMDB_KEY}&language=nl-NL`);
-            let colData = await colRes.json();
-
-            if (colData && colData.parts && colData.parts.length > 1) {
-                let sortedParts = colData.parts.sort((a, b) => {
-                    let dateA = a.release_date || '9999-12-31';
-                    let dateB = b.release_date || '9999-12-31';
-                    return dateA.localeCompare(dateB);
-                });
-
-                let currentIndex = sortedParts.findIndex(item => String(item.id) === String(tmdbId));
-
-                if (currentIndex !== -1) {
-                    let prequels = sortedParts.slice(0, currentIndex);
-                    let sequels = sortedParts.slice(currentIndex + 1);
-
-                    if (prequels.length > 0) {
-                        hasContent = true;
-                        htmlContent += `<div class="space-y-3">
-                            <h3 class="text-[10px] font-black uppercase text-slate-500 tracking-widest">Prequels</h3>
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                ${prequels.map((item, idx) => createCardHTML(item, 'movie', `Prequel ${idx + 1}`)).join('')}
-                            </div>
-                        </div>`;
-                    }
-
-                    if (sequels.length > 0) {
-                        hasContent = true;
-                        htmlContent += `<div class="space-y-3">
-                            <h3 class="text-[10px] font-black uppercase text-slate-500 tracking-widest">Sequels</h3>
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                ${sequels.map((item, idx) => createCardHTML(item, 'movie', `Sequel ${currentIndex + 2 + idx}`)).join('')}
-                            </div>
-                        </div>`;
-                    }
-                }
-            }
-        } catch (colErr) {
-            console.error("Fout bij ophalen collectie:", colErr);
-        }
-    }
-
-    try {
-        let recRes = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}/recommendations?api_key=${TMDB_KEY}&language=nl-NL`);
-        let recData = await recRes.json();
-        let recs = (recData.results || []).filter(item => String(item.id) !== String(tmdbId)).slice(0, 6);
-
-        if (recs.length > 0) {
-            hasContent = true;
-            htmlContent += `<div class="space-y-3">
-                <h3 class="text-[10px] font-black uppercase text-slate-500 tracking-widest">Gerelateerd & Aanbevolen</h3>
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                    ${recs.map(item => createCardHTML(item, type)).join('')}
-                </div>
-            </div>`;
-        }
-    } catch (recErr) {
-        console.error("Fout bij ophalen aanbevelingen:", recErr);
-    }
-
-    if (hasContent) {
-        relatedContainer.innerHTML = htmlContent;
+    if (itemsToDisplay.length > 0) {
+        relatedContainer.innerHTML = `<div class="space-y-3">
+            <h3 class="text-[10px] font-black uppercase text-slate-500 tracking-widest">Gerelateerd & Aanbevolen</h3>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                ${itemsToDisplay.map(item => createCardHTML(item, item.media_type)).join('')}
+            </div>
+        </div>`;
         relatedContainer.classList.remove('hidden');
     }
 }
@@ -1135,20 +1172,20 @@ async function loadModalRelated(tmdbId, type, data) {
     grid.innerHTML = '';
 
     try {
-        let recRes = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}/recommendations?api_key=${TMDB_KEY}&language=nl-NL`);
-        let recData = await recRes.json();
-        let items = (recData.results || []).slice(0, 5);
+        let items = await getComprehensiveRelated(tmdbId, type, data);
+        let itemsToDisplay = items.slice(0, 6);
 
-        if (items.length > 0) {
-            grid.innerHTML = items.map(item => {
+        if (itemsToDisplay.length > 0) {
+            grid.innerHTML = itemsToDisplay.map(item => {
                 let itemTitle = (item.title || item.name || 'Onbekend').replace(/"/g, '&quot;');
                 let posterSrc = item.poster_path ? `https://image.tmdb.org/t/p/w342${item.poster_path}` : '';
+                let mType = item.media_type || type;
                 return `
-                    <div onclick="openDetailsModal('${item.id}', '${type}')" class="card p-3 flex gap-3 items-center text-left cursor-pointer hover:border-purple-500/40">
+                    <div onclick="openDetailsModal('${item.id}', '${mType}')" class="card p-3 flex gap-3 items-center text-left cursor-pointer hover:border-purple-500/40">
                         <img src="${posterSrc}" class="w-12 h-16 object-cover rounded-lg">
                         <div class="truncate">
                             <p class="text-white text-xs font-bold truncate">${itemTitle}</p>
-                            <p class="text-[9px] text-purple-400 font-bold uppercase mt-1">${type === 'tv' ? 'Serie' : 'Film'}</p>
+                            <p class="text-[9px] text-purple-400 font-bold uppercase mt-1">${mType === 'tv' ? 'Serie' : 'Film'}</p>
                         </div>
                     </div>
                 `;
