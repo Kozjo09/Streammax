@@ -176,16 +176,26 @@
     </main>
 
     <!-- Footer -->
-    <footer class="mt-12 py-8 border-t border-purple-500/10 text-center text-slate-500 text-xs">
-        <div class="max-w-7xl mx-auto px-4 flex flex-col items-center gap-2">
-            <p class="font-bold tracking-wider uppercase text-[10px] text-slate-400">
-                Gemaakt door
-                <a href="https://notenoughdough.vercel.app/entertainment.html" target="_blank" rel="noopener noreferrer" class="text-purple-400 hover:text-purple-300 transition-colors font-black tracking-widest border-b border-purple-500/30 hover:border-purple-400 pb-0.5 inline-flex items-center gap-1.5">
-                    DOUGH ENTERTAINMENT <i class="fa-solid fa-arrow-up-right-from-square text-[8px]"></i>
-                </a>
-            </p>
-            <p class="text-[9px] text-slate-600">© StreamMax Pro. Alle rechten voorbehouden.</p>
-        </div>
+    <footer class="mt-12 py-10 border-t border-purple-500/10 flex flex-col items-center justify-center px-4">
+        <a href="https://notenoughdough.vercel.app/entertainment.html" target="_blank" rel="noopener noreferrer" class="group block w-full max-w-xl bg-[#08070c] hover:bg-[#0d0b14] border border-white/10 hover:border-lime-400/40 rounded-3xl p-6 sm:p-8 transition-all duration-300 shadow-2xl hover:shadow-[0_0_25px_rgba(163,230,53,0.15)] hover:-translate-y-0.5">
+            <div class="flex flex-col items-center text-center space-y-3">
+                <!-- Subtitle / Japanese label -->
+                <div class="flex items-center gap-2 text-xs sm:text-sm font-bold tracking-widest uppercase">
+                    <span class="text-lime-400 font-medium">エンターテインメント部門</span>
+                    <span class="text-zinc-600 font-mono">//</span>
+                    <span class="text-zinc-400 font-extrabold tracking-wider">GEMAAKT DOOR</span>
+                </div>
+
+                <!-- Main Title & Icon -->
+                <div class="flex items-center justify-center gap-3 sm:gap-4 text-xl sm:text-3xl md:text-4xl font-black italic uppercase tracking-wider">
+                    <i class="fa-solid fa-clapperboard text-lime-400 text-2xl sm:text-4xl transition-transform group-hover:scale-110"></i>
+                    <span class="text-white">DOUGH</span>
+                    <span class="text-lime-400">ENTERTAINMENT</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-xs sm:text-base text-zinc-500 group-hover:text-lime-400 transition-colors ml-1"></i>
+                </div>
+            </div>
+        </a>
+        <p class="text-[10px] text-zinc-600 mt-6 tracking-widest uppercase font-semibold">© StreamMax Pro. Alle rechten voorbehouden.</p>
     </footer>
 
     <!-- Bottom Navigation for Mobile -->
