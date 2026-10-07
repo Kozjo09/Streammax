@@ -299,6 +299,17 @@ let detailMedia = {
     currentSeason: 1
 };
 
+/* Helper function to escape HTML special characters to prevent DOM XSS */
+function escapeHTML(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 /* Slimme popup blocker om speler-crashes aan het einde van video's te voorkomen */
 (function () {
     const _orig = window.open;
@@ -455,7 +466,7 @@ function renderShelf(containerId, title, items, mediaType) {
     `;
 
     items.forEach(item => {
-        let itemTitle = (item.title || item.name || 'Onbekend').replace(/"/g, '&quot;');
+        let itemTitle = escapeHTML(item.title || item.name || 'Onbekend');
         let posterSrc = item.poster_path ? `https://image.tmdb.org/t/p/w342${item.poster_path}` : '';
         html += `
             <div onclick="openDetailsModal('${item.id}', '${mediaType}')" class="flex-none w-28 xs:w-32 sm:w-36 md:w-44 lg:w-52 2xl:w-64 3xl:w-72 4xl:w-80 text-left group cursor-pointer relative">
@@ -530,7 +541,7 @@ async function renderGridPage(category) {
 
         if (data.results && data.results.length > 0) {
             grid.innerHTML = data.results.map(item => {
-                let itemTitle = (item.title || item.name || 'Onbekend').replace(/"/g, '&quot;');
+                let itemTitle = escapeHTML(item.title || item.name || 'Onbekend');
                 let posterSrc = item.poster_path ? `https://image.tmdb.org/t/p/w342${item.poster_path}` : '';
                 return `
                     <div onclick="openDetailsModal('${item.id}', '${mediaType}')" class="text-left group cursor-pointer relative animate-fade-in">
@@ -661,7 +672,7 @@ async function performSearchPage() {
 
         if (results.length > 0) {
             grid.innerHTML = results.map(item => {
-                let itemTitle = (item.title || item.name || 'Onbekend').replace(/"/g, '&quot;');
+                let itemTitle = escapeHTML(item.title || item.name || 'Onbekend');
                 let posterSrc = item.poster_path ? `https://image.tmdb.org/t/p/w342${item.poster_path}` : '';
                 return `
                     <div onclick="openDetailsModal('${item.id}', '${item.media_type}')" class="text-left group cursor-pointer relative animate-fade-in">
@@ -674,7 +685,7 @@ async function performSearchPage() {
                 `;
             }).join('');
         } else {
-            grid.innerHTML = `<p class="col-span-full text-center text-slate-500 text-xs py-12">Niets gevonden voor "${query}".</p>`;
+            grid.innerHTML = `<p class="col-span-full text-center text-slate-500 text-xs py-12">Niets gevonden voor "${escapeHTML(query)}".</p>`;
         }
     } catch (err) {
         console.error("Fout bij zoeken:", err);
@@ -1082,7 +1093,7 @@ async function loadRelatedContent(tmdbId, type, data) {
 }
 
 function createCardHTML(item, mediaType, customBadge) {
-    let title = (item.title || item.name || 'Onbekend').replace(/"/g, '&quot;');
+    let title = escapeHTML(item.title || item.name || 'Onbekend');
     let posterSrc = item.poster_path ? `https://image.tmdb.org/t/p/w342${item.poster_path}` : '';
     let badgeText = customBadge || (mediaType === 'tv' ? 'Serie' : 'Film');
 
