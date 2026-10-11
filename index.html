@@ -837,25 +837,30 @@ async function renderPlayerPage() {
 
 function injectIframe() {
     let { mediaId, type, season, episode, srv } = app;
+    let safeMediaId = encodeURIComponent(String(mediaId || ''));
+    let safeType = (type === 'tv') ? 'tv' : 'movie';
+    let safeSeason = parseInt(season, 10) || 1;
+    let safeEpisode = parseInt(episode, 10) || 1;
     let isIMDb = String(mediaId).startsWith('tt');
-    let idParam = isIMDb ? ('imdb=' + mediaId) : ('tmdb=' + mediaId);
+    let idParam = isIMDb ? ('imdb=' + safeMediaId) : ('tmdb=' + safeMediaId);
     let url = "";
 
     if (srv === '1') {
-        url = type === 'movie' ? `https://vidsrc-embed.ru/embed/movie?${idParam}`
-                               : `https://vidsrc-embed.ru/embed/tv?${idParam}&season=${season}&episode=${episode}`;
+        url = safeType === 'movie' ? `https://vidsrc-embed.ru/embed/movie?${idParam}`
+                                   : `https://vidsrc-embed.ru/embed/tv?${idParam}&season=${safeSeason}&episode=${safeEpisode}`;
     } else if (srv === '2') {
-        url = type === 'movie' ? `https://vidsrc-embed.su/embed/movie?${idParam}`
-                               : `https://vidsrc-embed.su/embed/tv?${idParam}&season=${season}&episode=${episode}`;
+        url = safeType === 'movie' ? `https://vidsrc-embed.su/embed/movie?${idParam}`
+                                   : `https://vidsrc-embed.su/embed/tv?${idParam}&season=${safeSeason}&episode=${safeEpisode}`;
     } else {
-        url = type === 'movie' ? `https://embedmaster.link/movie/${mediaId}`
-                               : `https://embedmaster.link/tv/${mediaId}/${season}/${episode}`;
+        url = safeType === 'movie' ? `https://embedmaster.link/movie/${safeMediaId}`
+                                   : `https://embedmaster.link/tv/${safeMediaId}/${safeSeason}/${safeEpisode}`;
     }
 
+    let safeUrl = escapeHTML(url);
     let refPol = (srv !== '3') ? ' referrerpolicy="origin"' : '';
     let playerBox = document.getElementById('playerBox');
     if (playerBox) {
-        playerBox.innerHTML = `<iframe src="${url}" allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *" allowfullscreen${refPol} scrolling="no"></iframe>`;
+        playerBox.innerHTML = `<iframe src="${safeUrl}" allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *" allowfullscreen${refPol} scrolling="no"></iframe>`;
     }
 }
 
