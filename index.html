@@ -849,8 +849,8 @@ function injectIframe() {
         url = safeType === 'movie' ? `https://vidsrc-embed.ru/embed/movie?${idParam}`
                                    : `https://vidsrc-embed.ru/embed/tv?${idParam}&season=${safeSeason}&episode=${safeEpisode}`;
     } else if (srv === '2') {
-        url = safeType === 'movie' ? `https://vidsrc-embed.su/embed/movie?${idParam}`
-                                   : `https://vidsrc-embed.su/embed/tv?${idParam}&season=${safeSeason}&episode=${safeEpisode}`;
+        url = safeType === 'movie' ? `https://vidsrc.sh/embed/movie?${idParam}`
+                                   : `https://vidsrc.sh/embed/tv?${idParam}&season=${safeSeason}&episode=${safeEpisode}`;
     } else {
         url = safeType === 'movie' ? `https://embedmaster.link/movie/${safeMediaId}`
                                    : `https://embedmaster.link/tv/${safeMediaId}/${safeSeason}/${safeEpisode}`;
