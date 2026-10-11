@@ -14,6 +14,14 @@
     <link rel="dns-prefetch" href="https://embedmaster.link">
     <link rel="preconnect" href="https://api.themoviedb.org" crossorigin>
     <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
+    <link rel="dns-prefetch" href="https://graphql.anilist.co">
+    <link rel="dns-prefetch" href="https://proxy.corsfix.com">
+    <link rel="dns-prefetch" href="https://megaplay.buzz">
+    <link rel="dns-prefetch" href="https://anivexa-three.vercel.app">
+    <link rel="preconnect" href="https://graphql.anilist.co" crossorigin>
+    <link rel="preconnect" href="https://proxy.corsfix.com" crossorigin>
+    <link rel="preconnect" href="https://megaplay.buzz" crossorigin>
+    <link rel="preconnect" href="https://anivexa-three.vercel.app" crossorigin>
 
     <script>
         tailwind = {
@@ -34,6 +42,9 @@
         tailwind.config = tailwind.config;
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@webtor/embed-sdk-js/dist/index.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,700;0,800;1,800;1,900&display=swap');
@@ -145,6 +156,36 @@
         body.is-fullscreen #app-header, body.is-fullscreen #app-navigation {
             display: none !important;
         }
+
+        /* Toggle Switch */
+        .toggle-bg {
+            background-color: #27272a;
+            transition: background-color 0.2s ease;
+        }
+        input:checked + .toggle-bg {
+            background-color: #7c3aed;
+        }
+        .toggle-dot {
+            transition: transform 0.2s ease;
+        }
+        input:checked ~ .toggle-dot {
+            transform: translateX(100%);
+        }
+
+        /* Video Player & Subtitles */
+        ::cue {
+            background: rgba(0, 0, 0, 0.75);
+            color: #ffffff;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+        }
+        #native-player {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+        }
     </style>
 </head>
 <body class="pb-32 relative">
@@ -152,6 +193,58 @@
     <div id="toast-container" class="flex flex-col gap-2"></div>
 
     <!-- Glass Header -->
+
+    <!-- AniTorrent Modal (StreamMax Purple Theme) -->
+    <div id="anitorrent-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[10000] hidden flex items-center justify-center p-4">
+        <div class="bg-[#110826] border border-purple-500/30 p-5 sm:p-6 rounded-2xl max-w-2xl w-full shadow-2xl max-h-[85vh] flex flex-col">
+            <div class="flex items-center justify-between border-b border-purple-500/20 pb-4 mb-4">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-download text-purple-400 text-xl"></i>
+                    <div>
+                        <h3 class="text-base font-black uppercase text-white tracking-wide">AniTorrent / Magnet Bronnen</h3>
+                        <p class="text-[10px] text-purple-300/70 font-bold">Selecteer een torrent om direct via WebTorrent P2P te streamen</p>
+                    </div>
+                </div>
+                <button onclick="window.closeAniTorrentModal()" class="w-8 h-8 rounded-xl bg-purple-950 text-purple-300 hover:text-white flex items-center justify-center transition-all border border-purple-500/20">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Resolution Filter Tabs -->
+            <div class="flex items-center gap-2 mb-4 overflow-x-auto pb-1 no-scrollbar">
+                <button id="anitorrent-filter-ALL" onclick="window.filterAniTorrentResults('ALL')" class="px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all bg-purple-600 text-white border border-purple-400">
+                    Alle (<span id="anitorrent-count-ALL">0</span>)
+                </button>
+                <button id="anitorrent-filter-1080p" onclick="window.filterAniTorrentResults('1080p')" class="px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all bg-purple-950 text-purple-300 hover:bg-purple-900 border border-purple-500/20">
+                    1080p (<span id="anitorrent-count-1080p">0</span>)
+                </button>
+                <button id="anitorrent-filter-720p" onclick="window.filterAniTorrentResults('720p')" class="px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all bg-purple-950 text-purple-300 hover:bg-purple-900 border border-purple-500/20">
+                    720p (<span id="anitorrent-count-720p">0</span>)
+                </button>
+                <button id="anitorrent-filter-480p" onclick="window.filterAniTorrentResults('480p')" class="px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all bg-purple-950 text-purple-300 hover:bg-purple-900 border border-purple-500/20">
+                    480p (<span id="anitorrent-count-480p">0</span>)
+                </button>
+            </div>
+
+            <!-- Torrent Results List -->
+            <div id="anitorrent-results-list" class="flex-1 overflow-y-auto space-y-2.5 pr-1 no-scrollbar">
+                <!-- Dynamisch gevuld door JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal (StreamMax Purple Theme) -->
+    <div id="confirm-modal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[10000] hidden items-center justify-center p-4">
+        <div class="bg-[#110826] border border-purple-500/30 p-4 sm:p-6 2xl:p-8 rounded-2xl max-w-xs sm:max-w-sm w-full shadow-2xl">
+            <h3 id="confirm-title" class="text-lg font-black uppercase tracking-wider mb-2 text-white">Bevestigen</h3>
+            <p id="confirm-message" class="text-purple-200/80 text-xs leading-relaxed mb-6"></p>
+            <div class="flex gap-3">
+                <button id="confirm-cancel-btn" class="flex-1 bg-purple-950 hover:bg-purple-900 border border-purple-500/30 py-3 rounded-xl text-xs font-black uppercase text-purple-200 transition-all">Annuleren</button>
+                <button id="confirm-ok-btn" class="flex-1 bg-purple-600 hover:bg-purple-500 text-white py-3 rounded-xl text-xs font-black uppercase font-bold transition-all shadow-lg shadow-purple-600/30">Bevestigen</button>
+            </div>
+        </div>
+    </div>
+
     <header id="app-header" class="fixed top-0 left-0 right-0 z-50 glass-header p-3 sm:p-4 lg:px-10 2xl:px-16 3xl:px-20">
         <div class="flex items-center justify-between max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2000px] 4xl:max-w-[2560px] 5xl:max-w-[92vw] mx-auto">
             <div class="flex items-center gap-6 lg:gap-12">
@@ -161,6 +254,7 @@
                     <button onclick="nav('movies')" class="hover:text-white transition-colors animate-fade-in" id="head-nav-movies">Films</button>
                     <button onclick="nav('tv')" class="hover:text-white transition-colors animate-fade-in" id="head-nav-tv">Series</button>
                     <button onclick="nav('history')" class="hover:text-white transition-colors animate-fade-in" id="head-nav-history">Verder Kijken</button>
+                    <button onclick="nav('settings')" class="hover:text-white transition-colors animate-fade-in" id="head-nav-settings"><i class="fa-solid fa-gear mr-1"></i>Opties</button>
                 </nav>
             </div>
             <div id="header-right-controls" class="flex gap-4 items-center">
@@ -206,6 +300,7 @@
         <button onclick="nav('movies')" class="flex flex-col items-center justify-center min-w-[52px] min-h-[44px] py-1 px-2 nav-link text-slate-400 hover:text-white transition-all duration-200" id="nav-movies" title="Films" aria-label="Films"><i class="fa-solid fa-film text-base"></i><span class="text-[9px] font-black uppercase tracking-wider mt-1">Films</span></button>
         <button onclick="nav('tv')" class="flex flex-col items-center justify-center min-w-[52px] min-h-[44px] py-1 px-2 nav-link text-slate-400 hover:text-white transition-all duration-200" id="nav-tv" title="Series" aria-label="Series"><i class="fa-solid fa-tv text-base"></i><span class="text-[9px] font-black uppercase tracking-wider mt-1">Series</span></button>
         <button onclick="nav('history')" class="flex flex-col items-center justify-center min-w-[52px] min-h-[44px] py-1 px-2 nav-link text-slate-400 hover:text-white transition-all duration-200" id="nav-history" title="Historie" aria-label="Historie"><i class="fa-solid fa-clock-rotate-left text-base"></i><span class="text-[9px] font-black uppercase tracking-wider mt-1">Historie</span></button>
+        <button onclick="nav('settings')" class="flex flex-col items-center justify-center min-w-[52px] min-h-[44px] py-1 px-2 nav-link text-slate-400 hover:text-white transition-all duration-200" id="nav-settings" title="Opties" aria-label="Opties"><i class="fa-solid fa-gear text-base"></i><span class="text-[9px] font-black uppercase tracking-wider mt-1">Opties</span></button>
         <button onclick="nav('search')" class="flex flex-col items-center justify-center min-w-[52px] min-h-[44px] py-1 px-2 nav-link text-slate-400 hover:text-white transition-all duration-200" id="nav-search" title="Zoeken" aria-label="Zoeken"><i class="fa-solid fa-search text-base"></i><span class="text-[9px] font-black uppercase tracking-wider mt-1">Zoeken</span></button>
     </nav>
 
@@ -279,6 +374,19 @@ const API_URLS = {
     airing_today:    'https://api.themoviedb.org/3/tv/airing_today?api_key='     + TMDB_KEY + '&language=nl-NL'
 };
 
+const ANILIST_ENDPOINT = 'https://graphql.anilist.co';
+const ANIVEXA_BASE = 'https://anivexa-three.vercel.app';
+
+const TRACKERS = [
+    "wss://tracker.openwebtorrent.com",
+    "wss://tracker.btorrent.xyz",
+    "wss://tracker.webtorrent.dev",
+    "wss://tracker.files.fm:7072/announce",
+    "wss://tracker.fastcast.nz",
+    "wss://tracker.moking.moe:443/announce",
+    "wss://tracker.webtorrent.io"
+];
+
 let app = {
     view: 'home',
     mediaId: null,
@@ -289,7 +397,33 @@ let app = {
     episode: 1,
     totalSeasons: 1,
     totalEpsInSeason: 1,
-    srv: '1'
+    srv: '1',
+    id: null,
+    ep: 1,
+    mode: 'sub',
+    server: '1',
+    searchQuery: '',
+    libraryFilter: 'All',
+    searchFilters: { genres: [], country: '', season: '', year: '', format: [], status: [], sort: 'POPULARITY_DESC' },
+    searchPage: 1,
+    user: 'Gebruiker',
+    avatar: null,
+    showContinue: true,
+    lang: 'english',
+    autoPlay: true,
+    autoNext: true,
+    autoSkipIntro: false,
+    skipSeconds: 85,
+    ageFilterEnabled: false,
+    ageFilterLevel: 'Rx',
+    agePasswordEnabled: false,
+    agePassword: null,
+    defaultAudio: 'sub',
+    recent: [],
+    xmlLib: [],
+    autoDubFallback: true,
+    anilistToken: null,
+    anilistProfile: null
 };
 
 let detailMedia = {
@@ -299,35 +433,2681 @@ let detailMedia = {
     currentSeason: 1
 };
 
-/* Helper function to escape HTML special characters to prevent DOM XSS */
-function escapeHTML(str) {
-    if (str == null) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+let hlsInstance = null;
+let wtClient = null;
+let currentWebTorrentStream = null;
+let autoNextTriggered = false;
+let currentM3u8Url = null;
+let currentPlayerAnimeId = null;
+let currentPlayerEp = 1;
+let currentPlayerMode = 'sub';
+let currentPlayerServer = '1';
+let currentAniTorrentResults = [];
+let currentAniTorrentProviderFilter = 'all';
+let heroInterval = null;
+let currentHeroIdx = 0;
+let detailsCache = {};
+let searchCache = {};
+let anivexaEpisodesCache = {};
+let bypassPlayerPlaceholder = false;
+
+
+
+// --- getStorageCache ---
+function getStorageCache(key, maxAgeMs = 15 * 60 * 1000) {
+            try {
+                const itemStr = sessionStorage.getItem(key);
+                if (!itemStr) return null;
+                const item = JSON.parse(itemStr);
+                if (Date.now() - item.timestamp > maxAgeMs) {
+                    sessionStorage.removeItem(key);
+                    return null;
+                }
+                return item.data;
+            } catch (e) {
+                return null;
+            }
+        }
+
+// --- setStorageCache ---
+function setStorageCache(key, data) {
+            try {
+                sessionStorage.setItem(key, JSON.stringify({
+                    timestamp: Date.now(),
+                    data: data
+                }));
+            } catch (e) {}
+        }
+
+// --- escapeAttrJS ---
+function escapeAttrJS(str) {
+            if (!str) return '';
+            return escapeHTML(String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+        }
+
+// --- sanitizeHTML ---
+function sanitizeHTML(htmlString) {
+            if (!htmlString) return '';
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlString, 'text/html');
+            const allowedTags = new Set(['B', 'I', 'EM', 'STRONG', 'P', 'BR', 'SPAN', 'A', 'UL', 'OL', 'LI', 'SMALL']);
+
+            function clean(node) {
+                const children = Array.from(node.childNodes);
+                for (const child of children) {
+                    if (child.nodeType === Node.ELEMENT_NODE) {
+                        clean(child);
+                        if (!allowedTags.has(child.tagName)) {
+                            if (child.tagName !== 'SCRIPT' && child.tagName !== 'STYLE') {
+                                while (child.firstChild) {
+                                    node.insertBefore(child.firstChild, child);
+                                }
+                            }
+                            node.removeChild(child);
+                        } else {
+                            const attrs = Array.from(child.attributes);
+                            for (const attr of attrs) {
+                                if (child.tagName === 'A' && attr.name.toLowerCase() === 'href') {
+                                    if (!/^(https?:\/\/|\/|#)/i.test(attr.value)) {
+                                        child.removeAttribute('href');
+                                    }
+                                } else {
+                                    child.removeAttribute(attr.name);
+                                }
+                            }
+                            // Security Enhancement: Enforce target="_blank" and rel="noopener noreferrer" on allowed <a> tags to prevent reverse tabnabbing
+                            if (child.tagName === 'A' && child.hasAttribute('href')) {
+                                child.setAttribute('target', '_blank');
+                                child.setAttribute('rel', 'noopener noreferrer');
+                            }
+                        }
+                    }
+                }
+            }
+            clean(doc.body);
+            return doc.body.innerHTML;
+        }
+
+// --- clean ---
+function clean(node) {
+                const children = Array.from(node.childNodes);
+                for (const child of children) {
+                    if (child.nodeType === Node.ELEMENT_NODE) {
+                        clean(child);
+                        if (!allowedTags.has(child.tagName)) {
+                            if (child.tagName !== 'SCRIPT' && child.tagName !== 'STYLE') {
+                                while (child.firstChild) {
+                                    node.insertBefore(child.firstChild, child);
+                                }
+                            }
+                            node.removeChild(child);
+                        } else {
+                            const attrs = Array.from(child.attributes);
+                            for (const attr of attrs) {
+                                if (child.tagName === 'A' && attr.name.toLowerCase() === 'href') {
+                                    if (!/^(https?:\/\/|\/|#)/i.test(attr.value)) {
+                                        child.removeAttribute('href');
+                                    }
+                                } else {
+                                    child.removeAttribute(attr.name);
+                                }
+                            }
+                            // Security Enhancement: Enforce target="_blank" and rel="noopener noreferrer" on allowed <a> tags to prevent reverse tabnabbing
+                            if (child.tagName === 'A' && child.hasAttribute('href')) {
+                                child.setAttribute('target', '_blank');
+                                child.setAttribute('rel', 'noopener noreferrer');
+                            }
+                        }
+                    }
+                }
+            }
+
+// --- fetchWithCorsFallback ---
+async function fetchWithCorsFallback(url, options = {}) {
+    return await fetch(url, options);
 }
 
-/* Slimme popup blocker om speler-crashes aan het einde van video's te voorkomen */
-(function () {
-    const _orig = window.open;
-    window.open = function (url) {
-        if (!url || url === '' || url === 'about:blank') return _orig.apply(this, arguments);
-        return {
-            focus: function() {},
-            blur: function() {},
-            close: function() {},
-            location: { href: "" },
-            document: {}
-        };
-    };
-})();
+// --- proxyM3u8 ---
+function proxyM3u8(url) {
+            if (!url) return "";
+            if (url.includes('proxy.corsfix.com')) return url;
+            return `https://proxy.corsfix.com/?url=${encodeURIComponent(url)}`;
+        }
 
-/* ─────────────────────────────────────────────────────────────
-   NAVIGATIE & ROUTING
-───────────────────────────────────────────────────────────── */
+// --- gql ---
+async function gql(query, vars, requireAuth = false, retries = 3) {
+            const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+            if (requireAuth && app.anilistToken) {
+                headers['Authorization'] = 'Bearer ' + app.anilistToken;
+            }
+            try {
+                const r = await fetch(ANILIST_API, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({ query, variables: vars })
+                });
+
+                // Check HTTP level 429 Rate Limit
+                if (r.status === 429 && retries > 0) {
+                    const retryAfterHeader = r.headers.get('Retry-After');
+                    const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : 2;
+                    console.warn(`AniList Rate Limited (HTTP 429). Waiting ${retryAfter}s before retry...`);
+                    await new Promise(resolve => setTimeout(resolve, Math.max(retryAfter, 1) * 1000));
+                    return gql(query, vars, requireAuth, retries - 1);
+                }
+
+                const json = await r.json();
+
+                // Check GraphQL level 429 Rate Limit in errors array
+                if (json && json.errors && Array.isArray(json.errors)) {
+                    const isRateLimited = json.errors.some(err => err.status === 429 || (err.message && err.message.toLowerCase().includes('too many requests')));
+                    if (isRateLimited && retries > 0) {
+                        console.warn('AniList GraphQL Rate Limited. Waiting 2s before retry...');
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        return gql(query, vars, requireAuth, retries - 1);
+                    }
+                }
+
+                return json;
+            } catch(e) {
+                return null;
+            }
+        }
+
+// --- syncStateToUrl ---
+function syncStateToUrl() {
+            let hash = `#${app.view}`;
+            if (app.id) hash += `?id=${app.id}${app.ep ? '&ep=' + app.ep : ''}`;
+            if (window.location.hash !== hash) history.replaceState(null, null, hash);
+        }
+
+// --- restoreStateFromUrl ---
+function restoreStateFromUrl() {
+            const hash = window.location.hash;
+            if (!hash || hash === '#') { app.view = 'home'; app.id = null; app.ep = 1; return; }
+
+            // Oplossing voor Google Login (OAuth): Negeren van auth hashes
+            if (hash.includes('access_token=') || hash.includes('error_description=')) {
+                return; // We laten de sb.auth.onAuthStateChange dit afhandelen
+            }
+
+            const parts = hash.substring(1).split('?');
+            app.view = parts[0] || 'home'; app.id = null; app.ep = 1;
+
+            if (parts[1]) {
+                const params = new URLSearchParams(parts[1]);
+                if (params.has('id')) app.id = params.get('id');
+                if (params.has('ep')) app.ep = parseInt(params.get('ep') || '1');
+            }
+        }
+
+// --- formatDuration ---
+function formatDuration(sec) {
+            if (!sec || isNaN(sec)) return "0:00";
+            const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = Math.floor(sec % 60);
+            return h > 0 ? `${h}:${m<10?'0':''}${m}:${s<10?'0':''}${s}` : `${m}:${s<10?'0':''}${s}`;
+        }
+
+// --- initHlsStream ---
+function initHlsStream(streamUrl) {
+                if (Hls.isSupported()) {
+                    hlsInstance = new Hls({
+                        maxBidirectionalLinkDelay: 1.5,
+                        xhrSetup: function(xhr, url) {
+                            xhr.withCredentials = false;
+                            if (url.includes('proxy.corsfix.com')) {
+                                xhr.setRequestHeader('x-corsfix-key', 'cfx_6caec83cae44e09879b57ba6b15d18b0');
+                            }
+                        }
+                    });
+                    hlsInstance.loadSource(streamUrl);
+                    hlsInstance.attachMedia(video);
+                    hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() { restoreVideoPositionAndPlay(video); });
+                    hlsInstance.on(Hls.Events.ERROR, function(event, data) {
+                        if (data.fatal) {
+                            switch(data.type) {
+                                case Hls.ErrorTypes.NETWORK_ERROR:
+                                    console.warn("Direct stream failed.");
+                                    window.showToast("Stream netwerkfout. Probeer een andere server of open in VLC.", "error");
+                                    break;
+                                case Hls.ErrorTypes.MEDIA_ERROR:
+                                    hlsInstance.recoverMediaError();
+                                    break;
+                                default:
+                                    hlsInstance.destroy();
+                                    break;
+                            }
+                        }
+                    });
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = streamUrl;
+                    video.addEventListener('loadedmetadata', function() { restoreVideoPositionAndPlay(video); });
+                }
+            }
+
+// --- setupNativePlayer ---
+window.setupNativePlayer = function(m3u8Url, subtitles = []) {
+            const video = document.getElementById('native-player');
+            if (!video) return;
+
+            if (typeof stopWebTorrent === 'function') stopWebTorrent();
+            if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+            video.innerHTML = '';
+
+            window.currentM3u8Url = m3u8Url;
+
+            const vlcBtn = document.getElementById('vlc-btn');
+            if (vlcBtn && /^https?:\/\//i.test(m3u8Url)) {
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                if (m3u8Url && /^https?:\/\//i.test(m3u8Url)) {
+                    vlcBtn.href = isMobile
+                        ? "vlc-x-callback://x-callback-url/stream?url=" + encodeURIComponent(m3u8Url)
+                        : "vlc://" + m3u8Url;
+                } else {
+                    vlcBtn.removeAttribute('href');
+                }
+            }
+
+            if (subtitles && subtitles.length > 0) {
+                subtitles.forEach(sub => {
+                    const subUrl = sub.file || sub.url;
+                    if(subUrl) {
+                        const track = document.createElement('track');
+                        track.kind = 'captions';
+                        track.label = sub.label || sub.lang || sub.language || 'Sub';
+                        track.srclang = (track.label).substring(0, 2).toLowerCase();
+                        track.src = subUrl;
+                        if (track.label.toLowerCase().includes('eng') || track.label.toLowerCase().includes('nl')) track.default = true;
+                        video.appendChild(track);
+                    }
+                });
+            }
+
+            function initHlsStream(streamUrl) {
+                if (Hls.isSupported()) {
+                    hlsInstance = new Hls({
+                        maxBidirectionalLinkDelay: 1.5,
+                        xhrSetup: function(xhr, url) {
+                            xhr.withCredentials = false;
+                            if (url.includes('proxy.corsfix.com')) {
+                                xhr.setRequestHeader('x-corsfix-key', 'cfx_6caec83cae44e09879b57ba6b15d18b0');
+                            }
+                        }
+                    });
+                    hlsInstance.loadSource(streamUrl);
+                    hlsInstance.attachMedia(video);
+                    hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() { restoreVideoPositionAndPlay(video); });
+                    hlsInstance.on(Hls.Events.ERROR, function(event, data) {
+                        if (data.fatal) {
+                            switch(data.type) {
+                                case Hls.ErrorTypes.NETWORK_ERROR:
+                                    console.warn("Direct stream failed.");
+                                    window.showToast("Stream netwerkfout. Probeer een andere server of open in VLC.", "error");
+                                    break;
+                                case Hls.ErrorTypes.MEDIA_ERROR:
+                                    hlsInstance.recoverMediaError();
+                                    break;
+                                default:
+                                    hlsInstance.destroy();
+                                    break;
+                            }
+                        }
+                    });
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = streamUrl;
+                    video.addEventListener('loadedmetadata', function() { restoreVideoPositionAndPlay(video); });
+                }
+            }
+
+            const isM3u8 = /\.m3u8?(\?|$)/i.test(m3u8Url);
+            if (isM3u8) {
+                const proxiedUrl = proxyM3u8(m3u8Url);
+                initHlsStream(proxiedUrl);
+            } else {
+                video.src = m3u8Url;
+                video.addEventListener('loadedmetadata', function() { restoreVideoPositionAndPlay(video); });
+            }
+
+            video.ontimeupdate = () => { window.updateProgressUI(video.currentTime, video.duration); };
+            video.onended = () => {
+                if (autoNextTriggered) return;
+                autoNextTriggered = true;
+                setTimeout(() => { autoNextTriggered = false; }, 8000);
+                if (app.autoNext) window.playNextEpisode();
+            };
+        }
+
+// --- restoreVideoPositionAndPlay ---
+function restoreVideoPositionAndPlay(video) {
+            const ar = app.recent.find(r => r && r.id == app.id && r.ep == app.ep);
+            if (ar && ar.time > 0 && ar.time < (video.duration - 5)) {
+                video.currentTime = ar.time;
+            }
+            if (app.autoPlay) {
+                const playPromise = video.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(e => {
+                        console.warn("Unmuted autoplay blocked, trying muted:", e);
+                        video.muted = true;
+                        video.play().catch(err => console.warn("Muted autoplay blocked:", err));
+                    });
+                }
+            }
+            if (window.shouldRestoreFullscreen) {
+                window.enterPlayerFullscreen();
+            }
+        }
+
+// --- stopWebTorrent ---
+function stopWebTorrent() {
+            if (activeTorrent) {
+                try {
+                    activeTorrent.destroy({ destroyStore: true }, () => {});
+                } catch(e) {}
+                activeTorrent = null;
+            }
+            if (wtClient) {
+                try {
+                    wtClient.destroy(() => {});
+                } catch(e) {}
+                wtClient = null;
+            }
+            const statusEl = document.getElementById("webtorrent-status");
+            if (statusEl) statusEl.remove();
+
+            const targetEl = document.getElementById("webtor-player-target");
+            if (targetEl) {
+                targetEl.innerHTML = "";
+                targetEl.classList.add("hidden");
+            }
+            const videoEl = document.getElementById("native-player");
+            if (videoEl) {
+                videoEl.classList.remove("hidden");
+            }
+        }
+
+// --- buildMagnetLink ---
+function buildMagnetLink(hash, name) {
+            const tr = TRACKERS.map(t => "tr=" + encodeURIComponent(t)).join("&");
+            const dn = name ? "&dn=" + encodeURIComponent(name) : "";
+            return `magnet:?xt=urn:btih:${hash.toLowerCase()}${dn}&${tr}`;
+        }
+
+// --- fetchAniTorrentResults ---
+async function fetchAniTorrentResults(anilistId, targetEp) {
+            let titles = [];
+
+            if (detailsCache[anilistId] && detailsCache[anilistId].data && detailsCache[anilistId].data.Media) {
+                const media = detailsCache[anilistId].data.Media;
+                if (media.title) {
+                    if (media.title.romaji) titles.push(media.title.romaji);
+                    if (media.title.english) titles.push(media.title.english);
+                }
+            }
+
+            if (titles.length === 0) {
+                try {
+                    const res = await gql(`query($id:Int){Media(id:$id){title{romaji english} format episodes}}`, {id: parseInt(anilistId)});
+                    if (res && res.data && res.data.Media) {
+                        const media = res.data.Media;
+                        if (media.title.romaji) titles.push(media.title.romaji);
+                        if (media.title.english) titles.push(media.title.english);
+                    }
+                } catch(e) {}
+            }
+
+            titles = [...new Set(titles)].filter(Boolean);
+            if (titles.length === 0) return [];
+
+            const epPadded = String(targetEp).padStart(2, "0");
+            let rawResults = [];
+
+            // 1. Query AnimeTosho JSON API
+            for (const title of titles) {
+                try {
+                    const q = `${title} ${epPadded}`;
+                    const url = `https://feed.animetosho.org/json?q=${encodeURIComponent(q)}`;
+                    const res = await fetch(url);
+                    if (res.ok) {
+                        const items = await res.json();
+                        if (Array.isArray(items)) {
+                            items.forEach(item => {
+                                if (item.info_hash) {
+                                    rawResults.push({
+                                        title: item.title,
+                                        hash: item.info_hash,
+                                        magnet: item.magnet_uri || buildMagnetLink(item.info_hash, item.title),
+                                        torrent_url: item.torrent_url || null,
+                                        link: item.link || null,
+                                        size: item.total_size ? (item.total_size / (1024*1024)).toFixed(1) + " MB" : (item.size_bytes ? (item.size_bytes / (1024*1024)).toFixed(1) + " MB" : "Unknown size"),
+                                        seeders: item.seeders ?? 0,
+                                        leechers: item.leechers ?? 0,
+                                        source: "AnimeTosho"
+                                    });
+                                }
+                            });
+                        }
+                    }
+                } catch(e) {}
+            }
+
+            // 2. Query Nyaa RSS API
+            for (const title of titles) {
+                try {
+                    const q = `${title} ${epPadded}`;
+                    const url = proxyM3u8(`https://nyaa.si/?page=rss&q=${encodeURIComponent(q)}&c=1_2&s=id&o=desc`);
+                    const res = await fetch(url);
+                    if (res.ok) {
+                        const xmlText = await res.text();
+                        const itemMatches = xmlText.match(/<item>[\s\S]*?<\/item>/g) || [];
+                        itemMatches.forEach(itemXml => {
+                            const titleMatch = itemXml.match(/<title>(.*?)<\/title>/);
+                            const hashMatch = itemXml.match(/<nyaa:infoHash>(.*?)<\/nyaa:infoHash>/);
+                            const seedersMatch = itemXml.match(/<nyaa:seeders>(.*?)<\/nyaa:seeders>/);
+                            const leechersMatch = itemXml.match(/<nyaa:leecher[s]?>(.*?)<\/nyaa:leecher[s]?>/);
+                            const sizeMatch = itemXml.match(/<nyaa:size>(.*?)<\/nyaa:size>/);
+
+                            if (titleMatch && hashMatch) {
+                                const cleanTitle = titleMatch[1].replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+                                const hash = hashMatch[1].trim();
+
+                                let srcName = "Nyaa";
+                                if (/subsplease/i.test(cleanTitle)) srcName = "SubsPlease";
+                                else if (/toonshub/i.test(cleanTitle)) srcName = "ToonsHub";
+                                else if (/yameii/i.test(cleanTitle) || /dub/i.test(cleanTitle)) srcName = "Yameii";
+                                else if (/seadex/i.test(cleanTitle)) srcName = "SeaDex";
+
+                                const linkMatch = itemXml.match(/<link>(.*?)<\/link>/);
+                                rawResults.push({
+                                    title: cleanTitle,
+                                    hash: hash,
+                                    magnet: buildMagnetLink(hash, cleanTitle),
+                                    torrent_url: hash ? `https://storage.animetosho.org/torrent/${hash}/${encodeURIComponent(cleanTitle)}.torrent` : null,
+                                    link: linkMatch ? linkMatch[1] : null,
+                                    size: sizeMatch ? sizeMatch[1] : "Unknown size",
+                                    seeders: seedersMatch ? parseInt(seedersMatch[1]) || 0 : 0,
+                                    leechers: leechersMatch ? parseInt(leechersMatch[1]) || 0 : 0,
+                                    source: srcName
+                                });
+                            }
+                        });
+                    }
+                } catch(e) {}
+            }
+
+            // Deduplicate by info_hash
+            const uniqueMap = new Map();
+            rawResults.forEach(r => {
+                const key = r.hash.toLowerCase();
+                if (!uniqueMap.has(key)) {
+                    uniqueMap.set(key, r);
+                } else {
+                    const existing = uniqueMap.get(key);
+                    if (r.seeders > existing.seeders) uniqueMap.set(key, r);
+                }
+            });
+
+            let finalResults = Array.from(uniqueMap.values());
+
+            // Detect resolutions
+            finalResults.forEach(r => {
+                if (/1080p|1920x1080/i.test(r.title)) r.resolution = "1080p";
+                else if (/720p|1280x720/i.test(r.title)) r.resolution = "720p";
+                else if (/480p|848x480|640x480/i.test(r.title)) r.resolution = "480p";
+                else if (/2160p|4k/i.test(r.title)) r.resolution = "2160p";
+                else r.resolution = "Unknown";
+            });
+
+            // Sort by seeders descending
+            finalResults.sort((a, b) => b.seeders - a.seeders);
+            return finalResults;
+        }
+
+// --- openAniTorrentModal ---
+window.openAniTorrentModal = async function(providerFilter = "all") {
+            const modal = document.getElementById("anitorrent-modal");
+            if (!modal) return;
+            modal.classList.remove("hidden");
+            const listEl = document.getElementById("anitorrent-results-list");
+            listEl.innerHTML = `<div class="text-center py-12"><i class="fa-solid fa-spinner fa-spin text-3xl text-[#cae962] mb-3"></i><p class="text-xs font-bold text-zinc-400">Torrents zoeken via AniTorrent (${escapeHTML(providerFilter.toUpperCase())})...</p></div>`;
+
+            window.currentAniTorrentProviderFilter = providerFilter;
+            window.currentAniTorrentResults = await fetchAniTorrentResults(app.id, app.ep);
+            window.filterAniTorrentResults("ALL");
+        }
+
+// --- closeAniTorrentModal ---
+window.closeAniTorrentModal = function() {
+            const modal = document.getElementById("anitorrent-modal");
+            if (modal) modal.classList.add("hidden");
+        }
+
+// --- filterAniTorrentResults ---
+window.filterAniTorrentResults = function(resFilter) {
+            const listEl = document.getElementById("anitorrent-results-list");
+            if (!listEl) return;
+
+            // Highlight filter buttons
+            ["ALL", "1080p", "720p", "480p"].forEach(res => {
+                const btn = document.getElementById(`anitorrent-filter-${res}`);
+                if (btn) {
+                    if (res === resFilter) {
+                        btn.className = "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase bg-[#cae962] text-black";
+                    } else {
+                        btn.className = "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase bg-zinc-800 text-zinc-400 hover:bg-zinc-700";
+                    }
+                }
+            });
+
+            let results = window.currentAniTorrentResults || [];
+            const pFilter = window.currentAniTorrentProviderFilter || "all";
+
+            if (pFilter !== "all") {
+                results = results.filter(r => r.source.toLowerCase().includes(pFilter.toLowerCase()));
+            }
+
+            if (resFilter !== "ALL") {
+                results = results.filter(r => r.resolution === resFilter);
+            }
+
+            if (results.length === 0) {
+                listEl.innerHTML = `<div class="text-center py-8 text-zinc-500 text-xs font-bold">Geen torrents gevonden voor bron '${escapeHTML(pFilter.toUpperCase())}' en resolutie '${escapeHTML(resFilter)}'</div>`;
+                return;
+            }
+
+            let html = "";
+            results.forEach((r) => {
+                const safeTitle = escapeHTML(r.title);
+                const safeJSTitle = escapeAttrJS(r.title);
+                // Validate URL schemes to prevent javascript: or data: injection
+                const rawMagnet = (r.magnet && /^(magnet:|https?:\/\/)/i.test(r.magnet.trim())) ? r.magnet : '#';
+                const rawTorrentUrl = (r.torrent_url && /^https?:\/\//i.test(r.torrent_url.trim())) ? r.torrent_url : '';
+                const rawLink = (r.link && /^https?:\/\//i.test(r.link.trim())) ? r.link : '';
+
+                const safeMagnet = escapeAttrJS(rawMagnet);
+                const safeTorrentUrl = escapeAttrJS(rawTorrentUrl);
+                const safeLink = escapeAttrJS(rawLink);
+                const badgeColor = r.resolution === "1080p" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : (r.resolution === "720p" ? "bg-blue-500/20 text-blue-400 border-blue-500/30" : "bg-zinc-800 text-zinc-400 border-white/5");
+
+                html += `
+                <div class="bg-zinc-900/80 border border-white/5 rounded-xl p-3 hover:border-[#cae962]/50 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="space-y-1 min-w-0 flex-1">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase border ${badgeColor}">${escapeHTML(r.resolution)}</span>
+                            <span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-zinc-800 text-zinc-400">${escapeHTML(r.source)}</span>
+                            <span class="text-[10px] font-mono text-zinc-400">${escapeHTML(r.size)}</span>
+                        </div>
+                        <h4 class="text-xs font-bold text-white truncate" title="${safeTitle}">${safeTitle}</h4>
+                        <div class="flex items-center gap-4 text-[10px] font-bold">
+                            <span class="text-emerald-400"><i class="fa-solid fa-arrow-up mr-1"></i>${r.seeders} seeders</span>
+                            <span class="text-rose-400"><i class="fa-solid fa-arrow-down mr-1"></i>${r.leechers} leechers</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <a href="${safeTorrentUrl || safeMagnet}" target="_blank" rel="noopener noreferrer" download class="px-2.5 py-1.5 rounded-xl bg-zinc-800/80 text-zinc-300 font-bold text-[10px] uppercase hover:bg-zinc-700 hover:text-white transition-all whitespace-nowrap flex items-center justify-center gap-1 border border-white/5" title="Download .torrent bestand of Magnet link">
+                            <i class="fa-solid fa-magnet text-amber-400"></i> .Torrent / Magnet
+                        </a>
+                        <button onclick="window.downloadVideoFile('${safeTorrentUrl}', '${safeMagnet}', '${safeJSTitle}')" class="px-2.5 py-1.5 rounded-xl bg-zinc-800 text-zinc-200 font-bold text-[10px] uppercase hover:bg-zinc-700 hover:text-white transition-all whitespace-nowrap flex items-center justify-center gap-1 border border-white/5" title="Download Videobestand (.mp4 / .mkv)">
+                            <i class="fa-solid fa-download text-[#cae962]"></i> Download Video
+                        </button>
+                        <button onclick="window.selectTorrentAndStream('${safeMagnet}', '${safeJSTitle}', '${safeTorrentUrl}', '${safeLink}')" class="px-3 py-1.5 rounded-xl bg-[#cae962] text-black font-black text-[10px] uppercase hover:bg-[#b8da4e] transition-all whitespace-nowrap flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-play"></i> Stream Direct
+                        </button>
+                    </div>
+                </div>`;
+            });
+            listEl.innerHTML = html;
+        }
+
+// --- downloadVideoFile ---
+window.downloadVideoFile = function(torrentUrl, magnetUrl, title) {
+            window.showToast("Videobestand voorbehandelen voor download...", "info");
+            const cleanTitle = (title || "Anime_Video").replace(/[^a-zA-Z0-9_.-]/g, "_");
+
+            if (typeof WebTorrent !== "undefined") {
+                const tempClient = new WebTorrent();
+                const source = torrentUrl || magnetUrl;
+
+                tempClient.add(source, { announce: TRACKERS }, function(torrent) {
+                    if (typeof torrent.throttleUpload === "function") torrent.throttleUpload(0);
+                    const file = torrent.files.find(f => /\.(mp4|mkv|webm)$/i.test(f.name)) || torrent.files[0];
+                    if (file) {
+                        file.getBlobURL((err, url) => {
+                            if (!err && url) {
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = file.name || (cleanTitle + ".mp4");
+                                document.body.appendChild(a);
+                                a.click();
+                                a.remove();
+                                window.showToast("Videobestand download gestart!", "success");
+                            } else {
+                                window.showToast("Downloaden via directe mirror...", "warning");
+                                if (torrentUrl && /^https?:\/\//i.test(torrentUrl)) window.open(torrentUrl, "_blank", "noopener,noreferrer");
+                            }
+                            tempClient.destroy(() => {});
+                        });
+                    } else {
+                        window.showToast("Geen videobestand gevonden in torrent.", "error");
+                        tempClient.destroy(() => {});
+                    }
+                });
+
+                tempClient.on("error", function() {
+                    window.showToast("Directe download via netwerk starten...", "info");
+                    if (torrentUrl && /^https?:\/\//i.test(torrentUrl)) window.open(torrentUrl, "_blank", "noopener,noreferrer");
+                    tempClient.destroy(() => {});
+                });
+            } else if (torrentUrl && /^https?:\/\//i.test(torrentUrl)) {
+                window.open(torrentUrl, "_blank", "noopener,noreferrer");
+            } else {
+                window.showToast("Download niet mogelijk: Geen actieve client.", "error");
+            }
+        }
+
+// --- playDirectHttpFallback ---
+window.playDirectHttpFallback = function(directUrl, torrentTitle) {
+            stopWebTorrent();
+
+            const iframeEl = document.getElementById("player");
+            const nativeEl = document.getElementById("native-player-container");
+            const videoEl = document.getElementById("native-player");
+
+            let statusEl = document.getElementById("webtorrent-status");
+            if (!statusEl) {
+                statusEl = document.createElement("div");
+                statusEl.id = "webtorrent-status";
+                statusEl.className = "bg-zinc-900 border border-white/10 rounded-xl p-3 mb-4 flex items-center justify-between text-xs font-bold text-white";
+                nativeEl.parentNode.insertBefore(statusEl, nativeEl);
+            }
+            statusEl.innerHTML = `<div class="flex items-center gap-2 text-[#cae962]"><i class="fa-solid fa-[#cae962] fa-circle-check"></i><span>AniTorrent stream gestart</span></div><span class="text-zinc-400 font-mono text-[10px] truncate max-w-[220px]">${escapeHTML(torrentTitle || "Direct Stream")}</span>`;
+
+            if (directUrl && /\.(mp4|mkv|webm|m3u8)(\?.*)?$/i.test(directUrl)) {
+                iframeEl.classList.add("hidden"); iframeEl.classList.remove("block"); iframeEl.src = "";
+                nativeEl.classList.remove("hidden"); nativeEl.classList.add("block");
+                videoEl.src = proxyM3u8(directUrl);
+                videoEl.play().then(() => restoreVideoPositionAndPlay(videoEl)).catch(() => {});
+            } else {
+                window.loadStreamAndPlay(app.id, app.ep, app.mode, app.server || "megaplay");
+            }
+        }
+
+// --- selectTorrentAndStream ---
+window.selectTorrentAndStream = function(magnetUrl, torrentTitle, torrentUrl, directLink) {
+            window.closeAniTorrentModal();
+            stopWebTorrent();
+
+            window.showToast("AniTorrent bron laden via Webtor...", "info");
+
+            const iframeEl = document.getElementById("player");
+            const nativeEl = document.getElementById("native-player-container");
+            const videoEl = document.getElementById("native-player");
+
+            let statusEl = document.getElementById("webtorrent-status");
+            if (!statusEl) {
+                statusEl = document.createElement("div");
+                statusEl.id = "webtorrent-status";
+                statusEl.className = "bg-zinc-900 border border-white/10 rounded-xl p-3 mb-4 flex items-center justify-between text-xs font-bold text-white";
+                nativeEl.parentNode.insertBefore(statusEl, nativeEl);
+            }
+            statusEl.innerHTML = `<div class="flex items-center gap-2 text-[#cae962]"><i class="fa-solid fa-compact-disc fa-spin"></i><span>AniTorrent stream via Webtor server laden...</span></div><span class="text-zinc-400 font-mono text-[10px] truncate max-w-[220px]">${escapeHTML(torrentTitle)}</span>`;
+
+            let playerTarget = document.getElementById("webtor-player-target");
+            if (!playerTarget) {
+                playerTarget = document.createElement("div");
+                playerTarget.id = "webtor-player-target";
+                playerTarget.className = "w-full h-full min-h-[360px] sm:min-h-[480px] rounded-xl overflow-hidden bg-black mb-4";
+                nativeEl.parentNode.insertBefore(playerTarget, nativeEl);
+            }
+            playerTarget.innerHTML = "";
+            playerTarget.classList.remove("hidden");
+            iframeEl.classList.add("hidden"); iframeEl.classList.remove("block"); iframeEl.src = "";
+            nativeEl.classList.add("hidden"); nativeEl.classList.remove("block");
+
+            window.webtor = window.webtor || [];
+            const opts = {
+                id: "webtor-player-target",
+                baseUrl: "https://webtor.io/s/ulk68o47cw7olwgh",
+                title: torrentTitle,
+                width: "100%",
+                height: "100%",
+                header: true,
+                controls: true,
+                on: function(e) {
+                    if (e && (e.name === "inited" || e.name === "play")) {
+                        if (statusEl) {
+                            statusEl.innerHTML = `<div class="flex items-center gap-2 text-emerald-400 font-bold"><i class="fa-solid fa-circle-check"></i><span>AniTorrent Webtor streaming actief!</span></div><span class="text-zinc-400 font-mono text-[10px] truncate max-w-[220px]">${escapeHTML(torrentTitle)}</span>`;
+                        }
+                    }
+                }
+            };
+
+            if (torrentUrl && torrentUrl.startsWith("http")) {
+                opts.torrentUrl = torrentUrl;
+            } else {
+                opts.magnet = magnetUrl;
+            }
+
+            try {
+                window.webtor.push(opts);
+            } catch(err) {
+                console.warn("Webtor push error:", err);
+            }
+
+            // Fallback to active stream server if Webtor is slow or fails
+            setTimeout(() => {
+                if (playerTarget && playerTarget.children.length === 0) {
+                    if (directLink && /\.(mp4|mkv|webm|m3u8)(\?.*)?$/i.test(directLink)) {
+                        window.playDirectHttpFallback(directLink, torrentTitle);
+                    } else {
+                        nativeEl.classList.remove("hidden"); nativeEl.classList.add("block");
+                        window.loadStreamAndPlay(app.id, app.ep, app.mode, app.server || "megaplay");
+                    }
+                }
+            }, 5000);
+        }
+
+// --- enterPlayerFullscreen ---
+window.enterPlayerFullscreen = function() {
+            const wrapper = document.getElementById("player-wrapper");
+            if (!wrapper) return;
+            const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+            if (!isFs) {
+                const requestFs = wrapper.requestFullscreen || wrapper.webkitRequestFullscreen || wrapper.mozRequestFullscreen || wrapper.msRequestFullscreen;
+                if (requestFs) {
+                    requestFs.call(wrapper).catch(err => console.warn("Fullscreen entry prevented:", err));
+                }
+            }
+            window.shouldRestoreFullscreen = false;
+        }
+
+// --- exitFullscreenIfActive ---
+function exitFullscreenIfActive(keepRestoreFlag = false) {
+            const fsElement = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+            window.shouldRestoreFullscreen = fsElement ? !!keepRestoreFlag : false;
+            if (fsElement) {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen().catch(err => console.warn("Exit fullscreen failed:", err));
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+            }
+        }
+
+// --- handleFullscreenChange ---
+function handleFullscreenChange() {
+            const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+            if (isFullscreen) {
+                document.body.classList.add('is-fullscreen');
+            } else {
+                document.body.classList.remove('is-fullscreen');
+            }
+        }
+
+// --- proceedToNext ---
+function proceedToNext() {
+                const loc = app.xmlLib.find(i => i && i.id == app.id) || app.recent.find(i => i && i.id == app.id);
+                const totalEps = loc ? (loc.episodes || 12) : 12;
+                const nextEp = parseInt(app.ep) + 1;
+
+                if (nextEp <= totalEps) {
+                    window.showToast(`Start aflevering ${nextEp}...`);
+                    window.autoUpdateProgressOnEpClick(app.id, loc ? loc.title : 'Anime', nextEp, totalEps, loc ? loc.coverImage : '');
+                    setTimeout(() => { window.bypassPlayerPlaceholder = true; nav('watch', { id: app.id, ep: nextEp }); }, 200);
+                } else {
+                    window.showToast("Zoeken naar volgend seizoen...");
+                    gql(`query($id:Int){Media(id:$id){relations{edges{relationType node{id type status episodes coverImage{large} title{romaji english}}}}}}`, {id: parseInt(app.id)}).then(res => {
+                        if (!res || !res.data) return window.showToast("Laatste aflevering al bereikt!", "error");
+                        const edges = res.data.Media.relations.edges;
+                        const sequelEdge = edges.find(e => e.relationType === 'SEQUEL' && e.node.type === 'ANIME');
+
+                        if (sequelEdge) {
+                            const sequel = sequelEdge.node;
+                            const sequelTitle = app.lang === 'english' ? (sequel.title.english || sequel.title.romaji) : sequel.title.romaji;
+                            window.showConfirm("Wil je doorgaan naar het volgende seizoen?", sequelTitle, () => {
+                                window.autoUpdateProgressOnEpClick(app.id, loc ? loc.title : 'Anime', totalEps, totalEps, loc ? loc.coverImage : '', 'Watched');
+                                const newStatus = sequel.status === 'RELEASING' ? 'Dropped' : 'Watching';
+                                window.autoUpdateProgressOnEpClick(sequel.id, sequelTitle, 1, sequel.episodes || 12, sequel.coverImage.large, newStatus);
+                                window.bypassPlayerPlaceholder = true; nav('watch', { id: sequel.id, ep: 1 });
+                            });
+                        } else {
+                            window.showToast("Anime voltooid! Geen volgend seizoen gevonden.", "success");
+                            window.autoUpdateProgressOnEpClick(app.id, loc ? loc.title : 'Anime', totalEps, totalEps, loc ? loc.coverImage : '', 'Watched');
+                        }
+                    });
+                }
+            }
+
+// --- playNextEpisode ---
+window.playNextEpisode = function() {
+            exitFullscreenIfActive(true);
+            proceedToNext();
+
+            function proceedToNext() {
+                const loc = app.xmlLib.find(i => i && i.id == app.id) || app.recent.find(i => i && i.id == app.id);
+                const totalEps = loc ? (loc.episodes || 12) : 12;
+                const nextEp = parseInt(app.ep) + 1;
+
+                if (nextEp <= totalEps) {
+                    window.showToast(`Start aflevering ${nextEp}...`);
+                    window.autoUpdateProgressOnEpClick(app.id, loc ? loc.title : 'Anime', nextEp, totalEps, loc ? loc.coverImage : '');
+                    setTimeout(() => { window.bypassPlayerPlaceholder = true; nav('watch', { id: app.id, ep: nextEp }); }, 200);
+                } else {
+                    window.showToast("Zoeken naar volgend seizoen...");
+                    gql(`query($id:Int){Media(id:$id){relations{edges{relationType node{id type status episodes coverImage{large} title{romaji english}}}}}}`, {id: parseInt(app.id)}).then(res => {
+                        if (!res || !res.data) return window.showToast("Laatste aflevering al bereikt!", "error");
+                        const edges = res.data.Media.relations.edges;
+                        const sequelEdge = edges.find(e => e.relationType === 'SEQUEL' && e.node.type === 'ANIME');
+
+                        if (sequelEdge) {
+                            const sequel = sequelEdge.node;
+                            const sequelTitle = app.lang === 'english' ? (sequel.title.english || sequel.title.romaji) : sequel.title.romaji;
+                            window.showConfirm("Wil je doorgaan naar het volgende seizoen?", sequelTitle, () => {
+                                window.autoUpdateProgressOnEpClick(app.id, loc ? loc.title : 'Anime', totalEps, totalEps, loc ? loc.coverImage : '', 'Watched');
+                                const newStatus = sequel.status === 'RELEASING' ? 'Dropped' : 'Watching';
+                                window.autoUpdateProgressOnEpClick(sequel.id, sequelTitle, 1, sequel.episodes || 12, sequel.coverImage.large, newStatus);
+                                window.bypassPlayerPlaceholder = true; nav('watch', { id: sequel.id, ep: 1 });
+                            });
+                        } else {
+                            window.showToast("Anime voltooid! Geen volgend seizoen gevonden.", "success");
+                            window.autoUpdateProgressOnEpClick(app.id, loc ? loc.title : 'Anime', totalEps, totalEps, loc ? loc.coverImage : '', 'Watched');
+                        }
+                    });
+                }
+            }
+        }
+
+// --- skipIntroTime ---
+window.skipIntroTime = function() {
+            currentPlaybackTime += app.skipSeconds;
+            if (app.server === 'megaplay' || document.getElementById('player').classList.contains('block')) {
+                const player = document.getElementById('player');
+                if (player && player.contentWindow) {
+                    // Security enhancement: Restrict postMessage targetOrigin to exact iframe origin to prevent cross-origin data leaks
+                    let targetOrigin = "*";
+                    if (player.src) {
+                        try {
+                            const parsedUrl = new URL(player.src);
+                            if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+                                targetOrigin = parsedUrl.origin;
+                            }
+                        } catch (e) {}
+                    }
+                    player.contentWindow.postMessage(JSON.stringify({ event: "command", command: "seek", value: currentPlaybackTime }), targetOrigin);
+                }
+            } else {
+                const video = document.getElementById('native-player');
+                if (video) video.currentTime = currentPlaybackTime;
+            }
+            window.showToast(`Geskipt (+${app.skipSeconds}s)`);
+        }
+
+// --- openInVLC ---
+window.openInVLC = function() {
+            if (app.server === 'megaplay') {
+                window.showToast("MegaPlay is een ingesloten video en kan niet geopend worden in VLC. Schakel over naar een Direct/HLS server!", "error");
+                return;
+            }
+            if (!window.currentM3u8Url) {
+                window.showToast("Er is op dit moment geen directe video of .m3u8 bron geladen.", "error");
+                return;
+            }
+            // Security: Enforce strict http/https scheme validation on stream URL before triggering custom VLC protocol launch
+            if (!/^https?:\/\//i.test(window.currentM3u8Url)) {
+                window.showToast("Onveilige of ongeldige video-URL voor VLC.", "error");
+                return;
+            }
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            const vlcUrl = isMobile
+                ? "vlc-x-callback://x-callback-url/stream?url=" + encodeURIComponent(window.currentM3u8Url)
+                : "vlc://" + window.currentM3u8Url;
+            window.location.href = vlcUrl;
+            window.showToast("VLC Player aangeroepen! Zorg ervoor dat de VLC-app is geïnstalleerd.", "success");
+        }
+
+// --- copyVideoLink ---
+window.copyVideoLink = function() {
+            if (app.server === 'megaplay') {
+                window.showToast("MegaPlay is een ingesloten video en de directe link is niet beschikbaar.", "error");
+                return;
+            }
+            if (!window.currentM3u8Url) {
+                window.showToast("Er is op dit moment geen directe video of .m3u8 bron geladen.", "error");
+                return;
+            }
+
+            const textToCopy = window.currentM3u8Url;
+            const tempTextArea = document.createElement("textarea");
+            tempTextArea.value = textToCopy;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            try {
+                document.execCommand("copy");
+                window.showToast("Directe videolink gekopieerd naar klembord!", "success");
+            } catch (err) {
+                window.showToast("Kopiëren mislukt.", "error");
+            }
+            document.body.removeChild(tempTextArea);
+        }
+
+// --- saveCurrentVideoTime ---
+window.saveCurrentVideoTime = function() {
+            if (app.view !== 'watch' || !app.id) return;
+            const cur = app.recent.find(i => i && i.id == app.id);
+            window.saveRecent(app.id, cur ? cur.title : 'Anime', cur ? cur.img : '', app.ep);
+        }
+
+// --- checkAudioAvailabilityAndPlay ---
+window.checkAudioAvailabilityAndPlay = async function(mode) {
+            if (app.mode === mode) return;
+            app.mode = mode;
+            app.defaultAudio = mode;
+            saveCloudDataDebounced();
+
+            document.getElementById('sub-btn').className = `px-5 py-2.5 rounded-xl text-xs font-black uppercase transition ${app.mode=='sub'?'bg-[#cae962] text-black font-bold':'bg-zinc-900 text-zinc-400'}`;
+            document.getElementById('dub-btn').className = `px-5 py-2.5 rounded-xl text-xs font-black uppercase transition ${app.mode=='dub'?'bg-[#cae962] text-black font-bold':'bg-zinc-900 text-zinc-400'}`;
+
+            window.showToast(`Overschakelen naar ${mode.toUpperCase()}...`);
+            window.loadStreamAndPlay(app.id, app.ep, mode, app.server);
+        }
+
+// --- FILTER_OPTIONS ---
+const FILTER_OPTIONS = {
+            genres: [
+                'Action', 'Adventure', 'Comedy', 'Drama', 'Ecchi', 'Fantasy', 'Hentai', 'Horror',
+                'Mahou Shoujo', 'Mecha', 'Music', 'Mystery', 'Psychological', 'Romance', 'Sci-Fi',
+                'Slice of Life', 'Sports', 'Supernatural', 'Thriller'
+            ],
+            country: [
+                { label: 'Japan', code: 'JP' },
+                { label: 'China', code: 'CN' },
+                { label: 'South Korea', code: 'KR' }
+            ],
+            season: [
+                { label: 'Spring', val: 'SPRING' },
+                { label: 'Summer', val: 'SUMMER' },
+                { label: 'Fall', val: 'FALL' },
+                { label: 'Winter', val: 'WINTER' }
+            ],
+            years: Array.from({ length: 2027 - 1970 }, (_, i) => 2026 - i),
+            types: [
+                { label: 'TV', val: 'TV' },
+                { label: 'Movie', val: 'MOVIE' },
+                { label: 'OVA', val: 'OVA' },
+                { label: 'ONA', val: 'ONA' },
+                { label: 'Special', val: 'SPECIAL' },
+                { label: 'Music', val: 'MUSIC' }
+            ],
+            status: [
+                { label: 'Currently Airing', val: 'RELEASING' },
+                { label: 'Finished Airing', val: 'FINISHED' },
+                { label: 'Not Yet Released', val: 'NOT_YET_RELEASED' },
+                { label: 'Cancelled', val: 'CANCELLED' }
+            ],
+            sorts: [
+                { label: 'Popularity', val: 'POPULARITY_DESC' },
+                { label: 'Score', val: 'SCORE_DESC' },
+                { label: 'Recently Updated', val: 'UPDATED_AT_DESC' },
+                { label: 'Release Date', val: 'START_DATE_DESC' },
+                { label: 'Name A-Z', val: 'TITLE_ROMAJI' },
+                { label: 'Trending', val: 'TRENDING_DESC' },
+                { label: 'Favorites', val: 'FAVOURITES_DESC' }
+            ]
+        };
+
+// --- toggleFilterDropdown ---
+window.toggleFilterDropdown = function(name, e) {
+            e.stopPropagation();
+            const targetMenu = document.getElementById(`menu-${name}`);
+            const allMenus = document.querySelectorAll('.filter-dropdown > div');
+            allMenus.forEach(m => {
+                if (m !== targetMenu) m.classList.add('hidden');
+            });
+            if (targetMenu) {
+                targetMenu.classList.toggle('hidden');
+            }
+        }
+
+// --- renderFilterLabel ---
+window.renderFilterLabel = function(key, defaultTitle) {
+            const filterKey = key === 'genre' ? 'genres' : (key === 'type' ? 'format' : key);
+            const val = app.searchFilters[filterKey];
+            if (Array.isArray(val)) {
+                if (val.length === 0) return defaultTitle;
+                if (val.length === 1) return escapeHTML(val[0]);
+                return `${escapeHTML(val[0])} <span class="bg-[#cae962] text-black text-[9px] font-black px-1.5 py-0.5 rounded-full ml-1">+${val.length - 1}</span>`;
+            }
+            if (!val || val === 'POPULARITY_DESC') return defaultTitle;
+            if (filterKey === 'country') {
+                const found = FILTER_OPTIONS.country.find(c => c.code === val);
+                return found ? found.label : defaultTitle;
+            }
+            if (filterKey === 'season') {
+                const found = FILTER_OPTIONS.season.find(s => s.val === val);
+                return found ? found.label : defaultTitle;
+            }
+            if (filterKey === 'sort') {
+                const found = FILTER_OPTIONS.sorts.find(s => s.val === val);
+                return found ? found.label : defaultTitle;
+            }
+            return escapeHTML(String(val));
+        }
+
+// --- updateFilterButtonLabel ---
+window.updateFilterButtonLabel = function(key, defaultTitle, btnId) {
+            const el = document.getElementById(btnId || `label-${key}`);
+            if (el) {
+                el.innerHTML = renderFilterLabel(key, defaultTitle);
+            }
+        }
+
+// --- toggleFilterValue ---
+window.toggleFilterValue = function(key, val, e) {
+            e.stopPropagation();
+            const arr = app.searchFilters[key];
+            const idx = arr.indexOf(val);
+            if (idx > -1) {
+                arr.splice(idx, 1);
+            } else {
+                arr.push(val);
+            }
+            let defaultTitle = 'Filter';
+            if (key === 'genres') defaultTitle = 'Genre';
+            if (key === 'format') defaultTitle = 'Type';
+            if (key === 'status') defaultTitle = 'Status';
+            updateFilterButtonLabel(key, defaultTitle, `label-${key === 'format' ? 'type' : key}`);
+            triggerSearchExecution();
+        }
+
+// --- setSingleFilterValue ---
+window.setSingleFilterValue = function(key, val, e) {
+            e.stopPropagation();
+            app.searchFilters[key] = val;
+            let defaultTitle = 'Filter';
+            if (key === 'country') defaultTitle = 'Country';
+            if (key === 'season') defaultTitle = 'Season';
+            if (key === 'year') defaultTitle = 'Year';
+            if (key === 'sort') defaultTitle = 'Sort By';
+            updateFilterButtonLabel(key, defaultTitle);
+            document.querySelectorAll('.filter-dropdown > div').forEach(m => m.classList.add('hidden'));
+            triggerSearchExecution();
+        }
+
+// --- navByGenre ---
+window.navByGenre = function(genre) {
+            app.searchQuery = '';
+            app.searchFilters = { genres: [genre], country: '', season: '', year: '', format: [], status: [], sort: 'POPULARITY_DESC' };
+            updateFilterButtonLabel('genres', 'Genre', 'label-genre');
+            nav('search');
+        }
+
+// --- resetSearchFilters ---
+window.resetSearchFilters = function() {
+            app.searchQuery = '';
+            app.searchFilters = { genres: [], country: '', season: '', year: '', format: [], status: [], sort: 'POPULARITY_DESC' };
+            const input = document.getElementById('search-input');
+            if (input) input.value = '';
+            if (app.view === 'search') {
+                render();
+            } else {
+                triggerSearchExecution();
+            }
+        }
+
+// --- triggerSearchExecution ---
+window.triggerSearchExecution = function() {
+            const input = document.getElementById('search-input');
+            const q = input ? input.value : app.searchQuery;
+            liveSearch({ target: { value: q } });
+        }
+
+// --- changeSearchPage ---
+window.changeSearchPage = function(newPage) {
+            app.searchPage = newPage;
+            window.liveSearch({ target: { value: app.searchQuery || '' } }, false);
+            const container = document.getElementById('search-grid');
+            if (container) {
+                container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+// --- liveSearch ---
+window.liveSearch = function(e, resetPage = true) {
+            const requestId = ++currentSearchRequestId;
+            const q = e && e.target ? e.target.value.trim() : (app.searchQuery || '').trim();
+            app.searchQuery = q;
+            if (resetPage) {
+                app.searchPage = 1;
+            }
+            clearTimeout(searchTimeout);
+            const grid = document.getElementById('search-grid');
+            const paginationContainer = document.getElementById('search-pagination');
+            if (!grid) return;
+
+            const f = app.searchFilters || {};
+            const page = app.searchPage || 1;
+            const hasFilters = (f.genres && f.genres.length > 0) || f.country || f.season || f.year || (f.format && f.format.length > 0) || (f.status && f.status.length > 0) || (f.sort && f.sort !== 'POPULARITY_DESC');
+
+            if (q.length < 3 && !hasFilters) {
+                grid.innerHTML = '<p class="col-span-full text-center text-zinc-500 text-xs mt-10">Typ 3 of meer letters of kies een filter...</p>';
+                if (paginationContainer) paginationContainer.innerHTML = '';
+                return;
+            }
+
+            const cacheKey = JSON.stringify({ q, f, page });
+
+            const renderSearchResults = (res) => {
+                if (requestId !== currentSearchRequestId) return;
+                grid.innerHTML = '';
+                if (res && res.data && res.data.Page && res.data.Page.media && res.data.Page.media.length) {
+                    res.data.Page.media.forEach(m => {
+                        const titleText = app.lang === 'english' ? (m.title.english || m.title.romaji) : m.title.romaji;
+                        const safeTitle = escapeHTML(titleText);
+                        grid.innerHTML += `
+                            <div onclick="openDetailsModal('${m.id}')" class="text-left group cursor-pointer animate-fade-in relative">
+                                <div class="aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-white/5 relative bg-zinc-800">
+                                    <img src="${escapeHTML(m.coverImage.large)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy">
+                                    ${m.averageScore ? `<span class="absolute top-2 left-2 bg-black/85 text-accent text-[8px] font-black px-1.5 py-0.5 rounded shadow"><i class="fa-solid fa-star text-[7px] mr-1 text-[#cae962]"></i> ${m.averageScore/10}</span>` : ''}
+                                </div>
+                                <p class="text-[10px] font-black uppercase truncate text-zinc-400 group-hover:text-white pl-1" title="${safeTitle}">${safeTitle}</p>
+                            </div>`;
+                    });
+
+                    // Render pagination
+                    if (paginationContainer && res.data.Page.pageInfo) {
+                        const pageInfo = res.data.Page.pageInfo;
+                        const totalPages = pageInfo.lastPage || 1;
+                        const curr = pageInfo.currentPage || page;
+
+                        if (totalPages <= 1) {
+                            paginationContainer.innerHTML = '';
+                            return;
+                        }
+
+                        let pagesToShow = [];
+                        pagesToShow.push(1);
+
+                        let start = Math.max(2, curr - 2);
+                        let end = Math.min(totalPages - 1, curr + 2);
+
+                        if (start > 2) pagesToShow.push('...');
+                        for (let p = start; p <= end; p++) {
+                            if (!pagesToShow.includes(p)) pagesToShow.push(p);
+                        }
+                        if (end < totalPages - 1) pagesToShow.push('...');
+                        if (totalPages > 1 && !pagesToShow.includes(totalPages)) pagesToShow.push(totalPages);
+
+                        let pagHtml = `
+                            <div class="flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap text-xs font-bold pt-4">
+                                <button onclick="changeSearchPage(${curr - 1})" ${curr <= 1 ? 'disabled class="opacity-40 cursor-not-allowed bg-zinc-900 border border-white/5 text-zinc-500 px-3 py-2 rounded-xl flex items-center gap-1.5"' : 'class="bg-zinc-900 border border-white/10 hover:border-[#cae962] text-zinc-300 hover:text-white px-3 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer"'} aria-label="Vorige pagina">
+                                    <i class="fa-solid fa-chevron-left text-[10px]"></i> Vorige
+                                </button>
+                        `;
+
+                        pagesToShow.forEach(p => {
+                            if (p === '...') {
+                                pagHtml += `<span class="px-2 py-1 text-zinc-600 font-bold">...</span>`;
+                            } else if (p === curr) {
+                                pagHtml += `<button class="bg-[#cae962] text-black font-black px-3.5 py-2 rounded-xl shadow-lg shadow-[#cae962]/20 cursor-default" aria-label="Pagina ${p}">${p}</button>`;
+                            } else {
+                                pagHtml += `<button onclick="changeSearchPage(${p})" class="bg-zinc-900 border border-white/10 hover:border-[#cae962] text-zinc-300 hover:text-white px-3.5 py-2 rounded-xl transition cursor-pointer" aria-label="Ga naar pagina ${p}">${p}</button>`;
+                            }
+                        });
+
+                        pagHtml += `
+                                <button onclick="changeSearchPage(${curr + 1})" ${curr >= totalPages ? 'disabled class="opacity-40 cursor-not-allowed bg-zinc-900 border border-white/5 text-zinc-500 px-3 py-2 rounded-xl flex items-center gap-1.5"' : 'class="bg-zinc-900 border border-white/10 hover:border-[#cae962] text-zinc-300 hover:text-white px-3 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer"'} aria-label="Volgende pagina">
+                                    Volgende <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </button>
+                            </div>
+                        `;
+
+                        paginationContainer.innerHTML = pagHtml;
+                    }
+                } else {
+                    grid.innerHTML = '<p class="col-span-full text-center text-zinc-500 text-xs mt-10">Niets gevonden.</p>';
+                    if (paginationContainer) paginationContainer.innerHTML = '';
+                }
+            };
+
+            if (searchCache[cacheKey]) {
+                renderSearchResults(searchCache[cacheKey]);
+                return;
+            }
+
+            grid.innerHTML = '<div class="col-span-full text-center text-[#cae962] text-xs mt-10"><i class="fa-solid fa-circle-notch animate-spin"></i> Zoeken...</div>';
+            if (paginationContainer) paginationContainer.innerHTML = '';
+
+            searchTimeout = setTimeout(async () => {
+                const variables = { page: page, perPage: 24 };
+                if (q.length >= 3) variables.search = q;
+                if (f.genres && f.genres.length) variables.genre_in = f.genres;
+                if (f.country) variables.countryOfOrigin = f.country;
+                if (f.season) variables.season = f.season;
+                if (f.year) variables.seasonYear = parseInt(f.year, 10);
+                if (f.format && f.format.length) variables.format_in = f.format;
+                if (f.status && f.status.length) variables.status_in = f.status;
+                variables.sort = f.sort ? [f.sort] : ['POPULARITY_DESC'];
+
+                const varDefs = ['$page: Int', '$perPage: Int'];
+                if (variables.search) varDefs.push('$search: String');
+                if (variables.genre_in) varDefs.push('$genre_in: [String]');
+                if (variables.countryOfOrigin) varDefs.push('$countryOfOrigin: CountryCode');
+                if (variables.season) varDefs.push('$season: MediaSeason');
+                if (variables.seasonYear) varDefs.push('$seasonYear: Int');
+                if (variables.format_in) varDefs.push('$format_in: [MediaFormat]');
+                if (variables.status_in) varDefs.push('$status_in: [MediaStatus]');
+                if (variables.sort) varDefs.push('$sort: [MediaSort]');
+
+                const varStr = varDefs.length ? `(${varDefs.join(', ')})` : '';
+                const fieldArgs = [
+                    'type: ANIME',
+                    variables.search ? 'search: $search' : '',
+                    variables.genre_in ? 'genre_in: $genre_in' : '',
+                    variables.countryOfOrigin ? 'countryOfOrigin: $countryOfOrigin' : '',
+                    variables.season ? 'season: $season' : '',
+                    variables.seasonYear ? 'seasonYear: $seasonYear' : '',
+                    variables.format_in ? 'format_in: $format_in' : '',
+                    variables.status_in ? 'status_in: $status_in' : '',
+                    variables.sort ? 'sort: $sort' : ''
+                ].filter(Boolean).join(', ');
+
+                const query = `query ${varStr} { Page(page: $page, perPage: $perPage) { pageInfo { total currentPage lastPage hasNextPage } media(${fieldArgs}) { id title { romaji english } coverImage { large } averageScore genres tags { name } isAdult } } }`;
+
+                const res = await gql(query, variables);
+                if (requestId !== currentSearchRequestId) return;
+                if (res) {
+                    searchCache[cacheKey] = res;
+                    setStorageCache('searchCache', searchCache);
+                }
+                renderSearchResults(res);
+            }, resetPage ? 350 : 0);
+        }
+
+// --- renderSearchResults ---
+const renderSearchResults = (res) => {
+                if (requestId !== currentSearchRequestId) return;
+                grid.innerHTML = '';
+                if (res && res.data && res.data.Page && res.data.Page.media && res.data.Page.media.length) {
+                    res.data.Page.media.forEach(m => {
+                        const titleText = app.lang === 'english' ? (m.title.english || m.title.romaji) : m.title.romaji;
+                        const safeTitle = escapeHTML(titleText);
+                        grid.innerHTML += `
+                            <div onclick="openDetailsModal('${m.id}')" class="text-left group cursor-pointer animate-fade-in relative">
+                                <div class="aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-white/5 relative bg-zinc-800">
+                                    <img src="${escapeHTML(m.coverImage.large)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy">
+                                    ${m.averageScore ? `<span class="absolute top-2 left-2 bg-black/85 text-accent text-[8px] font-black px-1.5 py-0.5 rounded shadow"><i class="fa-solid fa-star text-[7px] mr-1 text-[#cae962]"></i> ${m.averageScore/10}</span>` : ''}
+                                </div>
+                                <p class="text-[10px] font-black uppercase truncate text-zinc-400 group-hover:text-white pl-1" title="${safeTitle}">${safeTitle}</p>
+                            </div>`;
+                    });
+
+                    // Render pagination
+                    if (paginationContainer && res.data.Page.pageInfo) {
+                        const pageInfo = res.data.Page.pageInfo;
+                        const totalPages = pageInfo.lastPage || 1;
+                        const curr = pageInfo.currentPage || page;
+
+                        if (totalPages <= 1) {
+                            paginationContainer.innerHTML = '';
+                            return;
+                        }
+
+                        let pagesToShow = [];
+                        pagesToShow.push(1);
+
+                        let start = Math.max(2, curr - 2);
+                        let end = Math.min(totalPages - 1, curr + 2);
+
+                        if (start > 2) pagesToShow.push('...');
+                        for (let p = start; p <= end; p++) {
+                            if (!pagesToShow.includes(p)) pagesToShow.push(p);
+                        }
+                        if (end < totalPages - 1) pagesToShow.push('...');
+                        if (totalPages > 1 && !pagesToShow.includes(totalPages)) pagesToShow.push(totalPages);
+
+                        let pagHtml = `
+                            <div class="flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap text-xs font-bold pt-4">
+                                <button onclick="changeSearchPage(${curr - 1})" ${curr <= 1 ? 'disabled class="opacity-40 cursor-not-allowed bg-zinc-900 border border-white/5 text-zinc-500 px-3 py-2 rounded-xl flex items-center gap-1.5"' : 'class="bg-zinc-900 border border-white/10 hover:border-[#cae962] text-zinc-300 hover:text-white px-3 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer"'} aria-label="Vorige pagina">
+                                    <i class="fa-solid fa-chevron-left text-[10px]"></i> Vorige
+                                </button>
+                        `;
+
+                        pagesToShow.forEach(p => {
+                            if (p === '...') {
+                                pagHtml += `<span class="px-2 py-1 text-zinc-600 font-bold">...</span>`;
+                            } else if (p === curr) {
+                                pagHtml += `<button class="bg-[#cae962] text-black font-black px-3.5 py-2 rounded-xl shadow-lg shadow-[#cae962]/20 cursor-default" aria-label="Pagina ${p}">${p}</button>`;
+                            } else {
+                                pagHtml += `<button onclick="changeSearchPage(${p})" class="bg-zinc-900 border border-white/10 hover:border-[#cae962] text-zinc-300 hover:text-white px-3.5 py-2 rounded-xl transition cursor-pointer" aria-label="Ga naar pagina ${p}">${p}</button>`;
+                            }
+                        });
+
+                        pagHtml += `
+                                <button onclick="changeSearchPage(${curr + 1})" ${curr >= totalPages ? 'disabled class="opacity-40 cursor-not-allowed bg-zinc-900 border border-white/5 text-zinc-500 px-3 py-2 rounded-xl flex items-center gap-1.5"' : 'class="bg-zinc-900 border border-white/10 hover:border-[#cae962] text-zinc-300 hover:text-white px-3 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer"'} aria-label="Volgende pagina">
+                                    Volgende <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </button>
+                            </div>
+                        `;
+
+                        paginationContainer.innerHTML = pagHtml;
+                    }
+                } else {
+                    grid.innerHTML = '<p class="col-span-full text-center text-zinc-500 text-xs mt-10">Niets gevonden.</p>';
+                    if (paginationContainer) paginationContainer.innerHTML = '';
+                }
+            }
+
+// --- filterXml ---
+window.filterXml = function(status) { app.libraryFilter = status; renderLibraryGrid(); }
+
+// --- checkIsAgeReset ---
+function checkIsAgeReset() {
+            return window.location.search.includes("mode=age_recovery") ||
+                   window.location.hash.includes("mode=age_recovery") ||
+                   isAgePasswordResetFlow;
+        }
+
+// --- getAgeRating ---
+function getAgeRating(m) {
+            if (!m) return { code: "PG-13", age: 13, isAdult: false, shortDesc: "13+", explanation: "13+ Teens and Older" };
+            const isAdult = m.isAdult === true;
+            const genres = (m.genres || []).map(g => String(g).toLowerCase());
+            let tags = [];
+            if (Array.isArray(m.tags)) {
+                tags = m.tags.map(t => (typeof t === "string" ? t : (t.name || "")).toLowerCase());
+            }
+
+            if (isAdult || genres.includes("hentai") || tags.includes("hentai")) {
+                return { code: "Rx", age: 18, isAdult: true, shortDesc: "18+ Uncen", explanation: "18+ Uncensored / Explicit Adult Content" };
+            }
+            if (genres.includes("ecchi") || tags.includes("ecchi") || tags.includes("nudity") || tags.includes("erotica")) {
+                return { code: "R+", age: 18, isAdult: false, shortDesc: "18+ Cen", explanation: "18+ Censored / Mild Nudity & Erotica" };
+            }
+            if (genres.includes("horror") || tags.includes("gore") || tags.includes("blood") || tags.includes("violence") || tags.includes("horror") || tags.includes("psychological")) {
+                return { code: "R", age: 17, isAdult: false, shortDesc: "17+ / 18+ Cen", explanation: "17+ Mild Gore / Violence / Horror" };
+            }
+            if (genres.includes("kids") || tags.includes("kids") || tags.includes("children")) {
+                return { code: "G", age: 0, isAdult: false, shortDesc: "G / All", explanation: "G - All Ages / Children" };
+            }
+            if (tags.includes("shounen") || tags.includes("family") || genres.includes("slice of life") || genres.includes("sports")) {
+                return { code: "PG", age: 10, isAdult: false, shortDesc: "PG / 10+", explanation: "PG - Children & Family (10+)" };
+            }
+            return { code: "PG-13", age: 13, isAdult: false, shortDesc: "13+", explanation: "13+ Teens and Older" };
+        }
+
+// --- isAnimeBlocked ---
+function isAnimeBlocked(m) {
+            if (!app.ageFilterEnabled) return false;
+            if (!m) return false;
+            if (app.ageFilterLevel === "NO_RESTRICTION") return false;
+
+            const levelRanks = { "G": 1, "PG": 2, "PG-13": 3, "R": 4, "R+": 5, "Rx": 6, "NO_RESTRICTION": 7 };
+            const maxRank = levelRanks[app.ageFilterLevel] || 7;
+            const rateInfo = getAgeRating(m);
+            const animeRank = levelRanks[rateInfo.code] || 1;
+            return animeRank > maxRank;
+        }
+
+// --- unlockAgeFilter ---
+window.unlockAgeFilter = function() {
+            const val = (document.getElementById('age-unlock-input')?.value || '').trim();
+            if (!val) return window.showToast("Vul uw leeftijdwachtwoord in!", "error");
+            if (val === app.agePassword) {
+                window.isAgeUnlocked = true;
+                window.showToast("Leeftijdsfilter ontgrendeld!", "success");
+                render();
+            } else {
+                window.showToast("Onjuist leeftijdwachtwoord!", "error");
+            }
+        }
+
+// --- lockAgeFilter ---
+window.lockAgeFilter = function() {
+            window.isAgeUnlocked = false;
+            window.showToast("Leeftijdsfilter opnieuw vergrendeld.", "info");
+            render();
+        }
+
+// --- toggleAgeFilterSetting ---
+window.toggleAgeFilterSetting = function(checked) {
+            if (app.agePasswordEnabled && !window.isAgeUnlocked) {
+                window.showToast("Instelling vergrendeld! Ontgrendel met het leeftijdwachtwoord.", "error");
+                render();
+                return;
+            }
+            app.ageFilterEnabled = checked;
+            saveCloudData();
+            window.showToast(checked ? "Leeftijdsfilter ingeschakeld." : "Leeftijdsfilter uitgeschakeld.");
+        }
+
+// --- toggleAgePasswordSetting ---
+window.toggleAgePasswordSetting = function(checked) {
+            if (checked) {
+                if (!app.agePassword) {
+                    const newPwd = prompt("Maak een nieuw leeftijdwachtwoord aan (min. 4 tekens):");
+                    if (!newPwd || newPwd.trim().length < 4) {
+                        window.showToast("Wachtwoord instellen geannuleerd of te kort (min 4 tekens).", "error");
+                        render();
+                        return;
+                    }
+                    app.agePassword = newPwd.trim();
+                    app.agePasswordEnabled = true;
+                    window.isAgeUnlocked = true;
+                    saveCloudData();
+                    window.showToast("Leeftijdwachtwoord ingeschakeld!", "success");
+                    render();
+                } else {
+                    app.agePasswordEnabled = true;
+                    window.isAgeUnlocked = true;
+                    saveCloudData();
+                    window.showToast("Leeftijdwachtwoord ingeschakeld!", "success");
+                    render();
+                }
+            } else {
+                if (app.agePasswordEnabled && app.agePassword && !window.isAgeUnlocked) {
+                    window.showToast("U moet eerst het leeftijdwachtwoord ontgrendelen om dit uit te schakelen!", "error");
+                    render();
+                    return;
+                }
+                app.agePasswordEnabled = false;
+                window.isAgeUnlocked = false;
+                saveCloudData();
+                window.showToast("Leeftijdwachtwoord uitgeschakeld.", "info");
+                render();
+            }
+        }
+
+// --- changeAgeFilterLevel ---
+window.changeAgeFilterLevel = function(val) {
+            if (app.agePasswordEnabled && !window.isAgeUnlocked) {
+                window.showToast("Instelling vergrendeld! Ontgrendel met het leeftijdwachtwoord.", "error");
+                render();
+                return;
+            }
+            app.ageFilterLevel = val;
+            saveCloudData();
+            window.showToast("Maximale keuring aangepast naar: " + val, "success");
+        }
+
+// --- changeAgePassword ---
+window.changeAgePassword = function() {
+            if (!app.agePasswordEnabled || !app.agePassword) return;
+            const oldPwd = (document.getElementById('age-pwd-old')?.value || '').trim();
+            const newPwd = (document.getElementById('age-pwd-new')?.value || '').trim();
+
+            if (!oldPwd || !newPwd) return window.showToast("Vul zowel het oude als het nieuwe wachtwoord in!", "error");
+            if (oldPwd !== app.agePassword) return window.showToast("Het oude wachtwoord is onjuist!", "error");
+            if (newPwd.length < 4) return window.showToast("Het nieuwe wachtwoord moet minimaal 4 tekens bevatten!", "error");
+
+            app.agePassword = newPwd;
+            saveCloudData();
+            window.showToast("Leeftijdwachtwoord succesvol gewijzigd!", "success");
+            render();
+        }
+
+// --- handleResetAgePassword ---
+window.handleResetAgePassword = async function() {
+            const pass = (document.getElementById('reset-new-age-password')?.value || '').trim();
+            if (pass.length < 4) return window.showToast("Leeftijdwachtwoord moet minimaal 4 tekens bevatten!", "error");
+
+            if (!sessionData || !sessionData.user) {
+                return window.showToast("Mislukt: U bent niet ingelogd of de herstellink is verlopen.", "error");
+            }
+
+            app.agePassword = pass;
+            app.agePasswordEnabled = true;
+            window.isAgeUnlocked = true;
+            await saveCloudData();
+
+            window.showToast("Leeftijdwachtwoord succesvol gewijzigd!", "success");
+            isPasswordResetFlow = false;
+            isAgePasswordResetFlow = false;
+
+            if (window.location.hash || window.location.search) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
+            document.getElementById('app-header').classList.remove('hidden');
+            document.getElementById('app-navigation').classList.remove('hidden');
+            app.view = 'settings';
+            render();
+        }
+
+// --- forgotAgePassword ---
+window.forgotAgePassword = async function() {
+            if (!sessionData || !sessionData.user || !sessionData.user.email) {
+                return window.showToast("Geen e-mailadres gevonden voor dit account.", "error");
+            }
+            window.showToast("Herstelfunctie starten voor e-mail...");
+            const email = sessionData.user.email;
+            const { error } = await sb.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin + window.location.pathname + '?mode=age_recovery'
+            });
+            if (error) {
+                window.showToast("Mislukt: " + error.message, "error");
+            } else {
+                window.showToast("Leeftijdwachtwoord herstellink verzonden naar uw mail!", "success");
+            }
+        }
+
+// --- saveSet ---
+window.saveSet = function() {
+            app.showContinue = document.getElementById('set-continue').checked;
+            app.autoPlay = document.getElementById('set-autoplay').checked;
+            app.autoNext = document.getElementById('set-autonext').checked;
+            app.autoSkipIntro = document.getElementById('set-autoskip').checked;
+            app.autoDubFallback = document.getElementById('set-autodub').checked;
+            app.skipSeconds = parseInt(document.getElementById('set-seconds').value || 85);
+            app.defaultAudio = document.querySelector('input[name="audio"]:checked').value;
+            app.lang = document.querySelector('input[name="lang"]:checked').value;
+
+            saveCloudData();
+            window.showToast("Instellingen opgeslagen!");
+        }
+
+// --- loginAniListOAuth ---
+window.loginAniListOAuth = function() {
+            // Door redirect_uri weg te laten, forceer je AniList om de standaard URL
+            // uit jouw dashboard instellingen (https://animemax-nu.vercel.app) te gebruiken.
+            // Dit lost de 'invalid_client' foutmelding direct op!
+            window.location.href = `https://anilist.co/api/v2/oauth/authorize?client_id=${AL_CLIENT_ID}&response_type=token`;
+        }
+
+// --- loginAniListManualToken ---
+window.loginAniListManualToken = function() {
+            const token = prompt("Plak hier uw AniList Personal Access Token:");
+            if (token && token.trim()) {
+                verifyAndSaveAniListToken(token.trim());
+            }
+        }
+
+// --- verifyAndSaveAniListToken ---
+async function verifyAndSaveAniListToken(token) {
+            app.anilistToken = token;
+            const res = await gql(`query { Viewer { id name avatar { large } } }`, {}, true);
+            if (res && res.data && res.data.Viewer) {
+                app.anilistProfile = {
+                    name: res.data.Viewer.name,
+                    avatar: res.data.Viewer.avatar.large
+                };
+                await saveCloudData();
+                window.showToast(`Welkom, ${res.data.Viewer.name}! Gekoppeld met AniList.`);
+                await window.syncAniListListToLocal(true);
+            } else {
+                app.anilistToken = null;
+                app.anilistProfile = null;
+                window.showToast("Ongeldige AniList Token. Probeer opnieuw.", "error");
+            }
+        }
+
+// --- fetchAniListProfile ---
+async function fetchAniListProfile() {
+            if (!app.anilistToken) {
+                app.anilistProfile = null;
+                return null;
+            }
+            if (app.anilistProfile) return app.anilistProfile;
+
+            const cachedProf = getStorageCache("anilistProfile", 24 * 60 * 60 * 1000);
+            if (cachedProf) {
+                app.anilistProfile = cachedProf;
+                return app.anilistProfile;
+            }
+
+            try {
+                const res = await gql(`query { Viewer { id name avatar { large } } }`, {}, true);
+                if (res && res.data && res.data.Viewer) {
+                    app.anilistProfile = {
+                        name: res.data.Viewer.name,
+                        avatar: res.data.Viewer.avatar.large
+                    };
+                    setStorageCache("anilistProfile", app.anilistProfile);
+                    return app.anilistProfile;
+                }
+            } catch (e) {
+                console.warn("AniList profiel ophalen mislukt.");
+            }
+            return null;
+        }
+
+// --- disconnectAniList ---
+window.disconnectAniList = function() {
+            window.showConfirm("AniList Ontkoppelen", "Weet je zeker dat je jouw AniList profiel wilt ontkoppelen?", () => {
+                app.anilistToken = null;
+                app.anilistProfile = null;
+                saveCloudDataDebounced();
+                window.showToast("AniList succesvol ontkoppeld.");
+                render();
+            });
+        }
+
+// --- syncProgressToAniList ---
+window.syncProgressToAniList = async function(animeId, progress, status) {
+            if (!app.anilistToken) return;
+            const statusMap = { "Watching": "CURRENT", "Watched": "COMPLETED", "Completed": "COMPLETED", "Plan to Watch": "PLANNING", "Dropped": "DROPPED" };
+            const alStatus = statusMap[status] || "CURRENT";
+
+            const query = `mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) { SaveMediaListEntry (mediaId: $mediaId, progress: $progress, status: $status) { id status progress } }`;
+            try {
+                await gql(query, { mediaId: parseInt(animeId), progress: parseInt(progress), status: alStatus }, true);
+            } catch (e) {
+                console.warn("AniList progressie opslaan mislukt.");
+            }
+        }
+
+// --- syncAniListListToLocal ---
+window.syncAniListListToLocal = async function(manualToast = true) {
+            if (!app.anilistToken) {
+                if (manualToast) window.showToast("Log eerst in met AniList!", "error");
+                return;
+            }
+            if (manualToast) window.showToast("AniList bibliotheek synchroniseren...");
+
+            try {
+                const viewerRes = await gql(`query { Viewer { id name avatar { large } } }`);
+                if (!viewerRes || !viewerRes.data || !viewerRes.data.Viewer) {
+                    if (manualToast) window.showToast("Kon AniList profiel niet ophalen.", "error");
+                    return;
+                }
+                const viewer = viewerRes.data.Viewer;
+                app.anilistProfile = {
+                    name: viewer.name,
+                    avatar: viewer.avatar.large
+                };
+
+                const listRes = await gql(`
+                    query ($userId: Int) {
+                        MediaListCollection(userId: $userId, type: ANIME) {
+                            lists {
+                                name
+                                status
+                                entries {
+                                    id
+                                    status
+                                    progress
+                                    media {
+                                        id
+                                        title {
+                                            romaji
+                                            english
+                                        }
+                                        episodes
+                                        coverImage {
+                                            large
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                `, { userId: viewer.id }, true);
+
+                if (!listRes || !listRes.data || !listRes.data.MediaListCollection) {
+                    if (manualToast) window.showToast("Kon AniList lijst niet ophalen.", "error");
+                    return;
+                }
+
+                const lists = listRes.data.MediaListCollection.lists;
+                const aniListEntries = [];
+                lists.forEach(list => {
+                    if (list.entries) {
+                        list.entries.forEach(entry => {
+                            if (entry && entry.media) {
+                                aniListEntries.push(entry);
+                            }
+                        });
+                    }
+                });
+
+                const alStatusMap = {
+                    'CURRENT': 'Watching',
+                    'PLANNING': 'Plan to Watch',
+                    'COMPLETED': 'Watched',
+                    'DROPPED': 'Dropped',
+                    'PAUSED': 'Watching'
+                };
+
+                const localToAlStatusMap = {
+                    'Watching': 'CURRENT',
+                    'Plan to Watch': 'PLANNING',
+                    'Watched': 'COMPLETED',
+                    'Completed': 'COMPLETED',
+                    'Dropped': 'DROPPED'
+                };
+
+                let localLib = [...app.xmlLib];
+                const aniListMap = {};
+                aniListEntries.forEach(entry => {
+                    aniListMap[entry.media.id.toString()] = entry;
+                });
+
+                const toPushToAniList = [];
+                let pulledCount = 0;
+
+                // 1. Process existing local items against AniList
+                localLib = localLib.map(localItem => {
+                    if (!localItem || !localItem.id) return localItem;
+                    const mediaIdStr = localItem.id.toString();
+                    const aniItem = aniListMap[mediaIdStr];
+
+                    if (aniItem) {
+                        const aniProgress = aniItem.progress || 0;
+                        const localProgress = localItem.progress || 0;
+
+                        if (localProgress > aniProgress) {
+                            // Local is ahead. Push to AniList.
+                            toPushToAniList.push({
+                                id: mediaIdStr,
+                                progress: localProgress,
+                                status: localToAlStatusMap[localItem.status] || 'CURRENT'
+                            });
+                            return localItem;
+                        } else if (aniProgress > localProgress) {
+                            // AniList is ahead. Pull to local.
+                            pulledCount++;
+                            return {
+                                ...localItem,
+                                progress: aniProgress,
+                                status: alStatusMap[aniItem.status] || 'Watching'
+                            };
+                        } else {
+                            // Progress is equal. Align status.
+                            const mappedAniStatus = alStatusMap[aniItem.status] || 'Watching';
+                            if (localItem.status !== mappedAniStatus) {
+                                if (localItem.status === 'Watched' || localItem.status === 'Completed') {
+                                    toPushToAniList.push({
+                                        id: mediaIdStr,
+                                        progress: localProgress,
+                                        status: 'COMPLETED'
+                                    });
+                                    return localItem;
+                                } else if (mappedAniStatus === 'Watched' || mappedAniStatus === 'Completed') {
+                                    pulledCount++;
+                                    return {
+                                        ...localItem,
+                                        status: 'Watched'
+                                    };
+                                } else {
+                                    pulledCount++;
+                                    return {
+                                        ...localItem,
+                                        status: mappedAniStatus
+                                    };
+                                }
+                            }
+                            return localItem;
+                        }
+                    } else {
+                        // Local-only. Push to AniList.
+                        toPushToAniList.push({
+                            id: mediaIdStr,
+                            progress: localItem.progress || 0,
+                            status: localToAlStatusMap[localItem.status] || 'CURRENT'
+                        });
+                        return localItem;
+                    }
+                });
+
+                // 2. Add AniList-only items to local
+                aniListEntries.forEach(entry => {
+                    const mediaIdStr = entry.media.id.toString();
+                    const existsLocally = localLib.some(item => item && item.id.toString() === mediaIdStr);
+
+                    if (!existsLocally) {
+                        const media = entry.media;
+                        const title = app.lang === 'english' ? (media.title.english || media.title.romaji) : (media.title.romaji || media.title.english);
+                        localLib.push({
+                            id: mediaIdStr,
+                            title: title,
+                            status: alStatusMap[entry.status] || 'Watching',
+                            progress: entry.progress || 0,
+                            episodes: media.episodes || 12,
+                            coverImage: media.coverImage ? media.coverImage.large : ''
+                        });
+                        pulledCount++;
+                    }
+                });
+
+                // 3. Push local changes to AniList
+                let pushedCount = 0;
+                if (toPushToAniList.length > 0) {
+                    for (const item of toPushToAniList) {
+                        try {
+                            const mutation = `mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) { SaveMediaListEntry (mediaId: $mediaId, progress: $progress, status: $status) { id status progress } }`;
+                            await gql(mutation, {
+                                mediaId: parseInt(item.id),
+                                progress: parseInt(item.progress),
+                                status: item.status
+                            }, true);
+                            pushedCount++;
+                        } catch (err) {
+                            console.warn("Synchroniseren van item naar AniList mislukt.");
+                        }
+                    }
+                }
+
+                app.xmlLib = localLib;
+                await saveCloudData();
+                render();
+
+                if (manualToast) {
+                    window.showToast(`Sync voltooid! ${pulledCount} binnengehaald, ${pushedCount} gepusht naar AniList.`, "success");
+                }
+            } catch (e) {
+                console.warn("AniList synchronisatie mislukt.");
+                if (manualToast) window.showToast("Fout bij synchroniseren met AniList.", "error");
+            }
+        }
+
+// --- changeAvatarUrl ---
+window.changeAvatarUrl = function() {
+            const input = document.getElementById('set-avatar-url');
+            const url = input ? input.value.trim() : '';
+            if (!url) {
+                app.avatar = null;
+                saveCloudDataDebounced();
+                window.showToast("Profielfoto verwijderd.");
+                render();
+                return;
+            }
+
+            if (!isValidAvatarUrl(url)) {
+                window.showToast("Ongeldige of onveilige URL! Gebruik een http(s) link of GIF URL.", "error");
+                return;
+            }
+
+            app.avatar = url;
+            saveCloudDataDebounced();
+            window.showToast("Profielfoto succesvol bijgewerkt!");
+            render();
+        }
+
+// --- changeUsername ---
+window.changeUsername = async function() {
+            const newUsername = document.getElementById('set-user').value.trim();
+            if (!newUsername) return window.showToast("Vul een gebruikersnaam in!", "error");
+            if (newUsername === app.user) return window.showToast("Gebruikersnaam is niet gewijzigd.");
+
+            window.showToast("Profiel bijwerken...");
+            try {
+                const { data, error } = await sb.rpc('update_username_and_auth_email', {
+                    target_user_id: sessionData.user.id,
+                    new_username: newUsername
+                });
+
+                if (error) throw error;
+
+                if (data && data.success) {
+                    app.user = newUsername;
+                    saveCloudDataDebounced();
+                    window.showToast("Gebruikersnaam succesvol bijgewerkt!");
+                    render();
+                } else {
+                    window.showToast(data ? data.message : "Gebruikersnaam al in gebruik.", "error");
+                }
+            } catch(e) {
+                console.warn("Profiel updaten mislukt.");
+                window.showToast("Er is een fout opgetreden.", "error");
+            }
+        }
+
+// --- handleAvatarFileUpload ---
+window.handleAvatarFileUpload = function(e) {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+
+            const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+            if (!allowedTypes.includes(file.type.toLowerCase())) {
+                window.showToast("Ongeldig bestandstype. Kies een PNG, JPG, GIF of WEBP afbeelding.", "error");
+                e.target.value = '';
+                return;
+            }
+
+            const maxSize = 2 * 1024 * 1024;
+            if (file.size > maxSize) {
+                window.showToast("Bestand is te groot! Maximale grootte is 2MB.", "error");
+                e.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const dataUrl = event.target.result;
+                if (isValidAvatarUrl(dataUrl)) {
+                    app.avatar = dataUrl;
+                    saveCloudDataDebounced();
+                    window.showToast("Profielfoto succesvol geüpload!");
+                    render();
+                } else {
+                    window.showToast("Ongeldige of onveilige afbeeldingsdata.", "error");
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+// --- removeAvatar ---
+window.removeAvatar = function() {
+            app.avatar = null;
+            saveCloudDataDebounced();
+            window.showToast("Profielfoto gereset naar standaard.");
+            render();
+        }
+
+// --- isValidAvatarUrl ---
+function isValidAvatarUrl(url) {
+            if (!url || typeof url !== 'string') return false;
+            const trimmed = url.trim();
+            if (!trimmed) return false;
+
+            const lower = trimmed.toLowerCase();
+            if (lower.includes('javascript:') || lower.includes('vbscript:') || lower.includes('<script') || lower.includes('data:text/html')) {
+                return false;
+            }
+
+            if (lower.startsWith('data:')) {
+                const dataUrlRegex = /^data:image\/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/=]+$/i;
+                return dataUrlRegex.test(trimmed);
+            }
+
+            try {
+                const parsed = new URL(trimmed);
+                return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+            } catch (e) {
+                return false;
+            }
+        }
+
+// --- onStatusDropdownChange ---
+window.onStatusDropdownChange = function(sel, id) {
+            const loc = app.xmlLib.find(i => i && i.id == id) || app.recent.find(i => i && i.id == id) || { title: "Anime", episodes: 12, coverImage: "" };
+            const ep = app.ep || 1;
+            window.autoUpdateProgressOnEpClick(id, loc.title, ep, loc.episodes || 12, loc.coverImage, sel.value);
+
+            // Auto-sync status change to AniList immediately from watch view dropdown
+            if (app.anilistToken) {
+                window.syncProgressToAniList(id, ep, sel.value);
+            }
+        }
+
+// --- onDetailStatusChange ---
+window.onDetailStatusChange = function(sel) {
+            if (!activeModalId) return;
+            const statusVal = sel.value;
+            let item = app.xmlLib.find(i => i && i.id == activeModalId);
+            const title = document.getElementById('detail-title').innerText;
+            const cover = document.getElementById('detail-poster').src;
+            const epsText = document.getElementById('detail-episodes').innerText;
+            const epsTotal = parseInt(epsText) || 12;
+
+            if (statusVal === "Not Watching") {
+                app.xmlLib = app.xmlLib.filter(i => i.id != activeModalId);
+            } else {
+                if (item) {
+                    item.status = statusVal;
+                } else {
+                    app.xmlLib.push({ id: activeModalId.toString(), title, status: statusVal, progress: 0, episodes: epsTotal, coverImage: cover });
+                }
+            }
+            saveCloudDataDebounced();
+            window.syncProgressToAniList(activeModalId, item ? item.progress : 0, statusVal);
+            window.showToast("Mijn Lijst succesvol bijgewerkt!");
+            openDetailsModal(activeModalId);
+        }
+
+// --- renderLibraryGrid ---
+window.renderLibraryGrid = function() {
+            const grid = document.getElementById('lib-grid');
+            if(!grid) return;
+            let list = app.xmlLib;
+            if (app.libraryFilter !== 'All') {
+                const mapStat = app.libraryFilter === 'Completed' ? 'Watched' : app.libraryFilter;
+                list = list.filter(i => i && i.status === mapStat);
+            }
+
+            if (!list.length) {
+                grid.innerHTML = '<p class="col-span-full text-center text-zinc-500 text-xs py-12">Geen anime gevonden in deze categorie.</p>';
+                return;
+            }
+
+            grid.innerHTML = '';
+            list.forEach(m => {
+                if(!m) return;
+                let statColor = 'bg-zinc-800 text-white';
+                if(m.status === 'Watching') statColor = 'bg-[#cae962] text-black font-bold';
+                else if(m.status === 'Watched' || m.status === 'Completed') statColor = 'bg-emerald-600 text-white';
+                else if(m.status === 'Dropped') statColor = 'bg-red-900 text-white';
+
+                const safeTitle = escapeHTML(m.title || 'Anime');
+                const safeImg = escapeHTML(m.coverImage || '');
+                const safeId = escapeHTML(String(m.id));
+                const safeStatus = escapeHTML(m.status || '');
+
+                grid.innerHTML += `
+                    <div onclick="openDetailsModal('${safeId}')" class="text-left group cursor-pointer relative animate-fade-in">
+                        <div class="aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-white/5 relative">
+                            <img src="${safeImg}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80 group-hover:opacity-100">
+                            <span class="absolute top-2 left-2 ${statColor} text-[8px] font-black px-1.5 py-0.5 rounded shadow uppercase">${safeStatus}</span>
+                            <div class="absolute bottom-0 left-0 w-full h-1 bg-white/10"><div class="h-full bg-[#cae962]" style="width: ${(m.progress/m.episodes)*100}%"></div></div>
+                        </div>
+                        <p class="text-[10px] font-black uppercase truncate text-zinc-400 group-hover:text-white pl-1">${safeTitle}</p>
+                        <p class="text-[8px] font-bold text-zinc-500 pl-1 uppercase mt-0.5">${parseInt(m.progress) || 0} / ${parseInt(m.episodes) || '?'} EPS</p>
+                    </div>`;
+            });
+        }
+
+// --- renderHomeFeeds ---
+const renderHomeFeeds = (res) => {
+                    if(!res || !res.data) return;
+
+                    clearInterval(heroInterval);
+                    const tData = res.data.trending.media;
+                    if(tData.length > 0) {
+                        const top10 = tData.slice(0, 10);
+                        let currentHeroIdx = 0;
+
+                        const updateHeroSlide = (idx) => {
+                            currentHeroIdx = idx;
+                            const hero = top10[idx];
+                            if (!hero) return;
+                            const ht = app.lang === 'english' ? (hero.title.english || hero.title.romaji) : hero.title.romaji;
+
+                            const badgeEl = document.getElementById('hero-badge');
+                            if (badgeEl) badgeEl.innerText = `Populairste Nu #${idx + 1}`;
+
+                            const titleEl = document.getElementById('hero-title');
+                            if (titleEl) titleEl.innerText = ht;
+
+                            const descEl = document.getElementById('hero-desc');
+                            if (descEl) descEl.innerHTML = sanitizeHTML(hero.description) || '';
+
+                            const imgEl = document.getElementById('hero-img');
+                            if (imgEl) imgEl.src = hero.bannerImage || hero.coverImage.extraLarge;
+
+                            const playBtn = document.getElementById('hero-play');
+                            if (playBtn) playBtn.onclick = () => nav('watch', {id: hero.id, ep: 1});
+
+                            const infoBtn = document.getElementById('hero-info');
+                            if (infoBtn) infoBtn.onclick = () => openDetailsModal(hero.id);
+
+                            const indContainer = document.getElementById('hero-indicators');
+                            if (indContainer) {
+                                let indHtml = '';
+                                top10.forEach((_, i) => {
+                                    const active = i === idx;
+                                    indHtml += `<button onclick="event.stopPropagation(); window.switchHeroSlide(${i});" class="shrink-0 h-2.5 rounded-full transition-all duration-300 ${active ? 'w-7 bg-[#cae962]' : 'w-2.5 bg-white/30 hover:bg-white/60'}" aria-label="Slide ${i+1}"></button>`;
+                                });
+                                indContainer.innerHTML = indHtml;
+
+                                const activeBtn = indContainer.children[idx];
+                                if (activeBtn) {
+                                    indContainer.scrollTo({
+                                        left: activeBtn.offsetLeft - (indContainer.clientWidth / 2) + (activeBtn.clientWidth / 2),
+                                        behavior: 'smooth'
+                                    });
+                                }
+                            }
+                        };
+
+                        window.switchHeroSlide = (idx) => {
+                            clearInterval(heroInterval);
+                            updateHeroSlide(idx);
+                            startHeroTimer();
+                        };
+
+                        window.nextHeroSlide = () => {
+                            clearInterval(heroInterval);
+                            const nextIdx = (currentHeroIdx + 1) % top10.length;
+                            updateHeroSlide(nextIdx);
+                            startHeroTimer();
+                        };
+
+                        window.prevHeroSlide = () => {
+                            clearInterval(heroInterval);
+                            const prevIdx = (currentHeroIdx - 1 + top10.length) % top10.length;
+                            updateHeroSlide(prevIdx);
+                            startHeroTimer();
+                        };
+
+                        const startHeroTimer = () => {
+                            clearInterval(heroInterval);
+                            heroInterval = setInterval(() => {
+                                const nextIdx = (currentHeroIdx + 1) % top10.length;
+                                updateHeroSlide(nextIdx);
+                            }, 6000);
+                        };
+
+                        updateHeroSlide(0);
+                        startHeroTimer();
+
+                        const heroContainer = document.getElementById('home-hero');
+                        if (heroContainer) {
+                            heroContainer.onmouseenter = () => clearInterval(heroInterval);
+                            heroContainer.onmouseleave = () => startHeroTimer();
+
+                            let touchStartX = 0;
+                            let touchStartY = 0;
+                            let touchEndX = 0;
+                            let touchEndY = 0;
+
+                            heroContainer.addEventListener('touchstart', (e) => {
+                                if (e.target.closest('button')) return;
+                                touchStartX = e.changedTouches[0].clientX;
+                                touchStartY = e.changedTouches[0].clientY;
+                            }, { passive: true });
+
+                            heroContainer.addEventListener('touchend', (e) => {
+                                if (e.target.closest('button')) return;
+                                touchEndX = e.changedTouches[0].clientX;
+                                touchEndY = e.changedTouches[0].clientY;
+
+                                const deltaX = touchEndX - touchStartX;
+                                const deltaY = touchEndY - touchStartY;
+
+                                // Require minimum horizontal distance of 40px and horizontal swipe priority over vertical scroll
+                                if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                                    if (deltaX < 0) {
+                                        window.nextHeroSlide();
+                                    } else {
+                                        window.prevHeroSlide();
+                                    }
+                                }
+                            }, { passive: true });
+                        }
+
+                        const trendShelf = document.getElementById('home-trending');
+                        trendShelf.innerHTML = '';
+                        let trendHtml = `<h2 class="text-lg sm:text-xl 2xl:text-2xl 3xl:text-3xl font-black italic uppercase tracking-tighter flex items-center gap-2"><i class="fa-solid fa-fire text-[#cae962]"></i> Trending Nu</h2><div class="shelf-container no-scrollbar">`;
+                        tData.slice(1).forEach(m => {
+                            const mt = app.lang === 'english' ? (m.title.english || m.title.romaji) : m.title.romaji;
+                            const safeMt = escapeHTML(mt || '');
+                            const safeImg = escapeHTML(m.coverImage ? m.coverImage.large : '');
+                            const safeId = escapeHTML(String(m.id));
+                            trendHtml += `
+                                <div onclick="openDetailsModal('${safeId}')" class="flex-none w-28 xs:w-32 sm:w-36 md:w-44 lg:w-52 2xl:w-64 3xl:w-72 4xl:w-80 text-left group cursor-pointer">
+                                    <div class="aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-white/5 relative">
+                                        <img src="${safeImg}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                    </div>
+                                    <p class="text-[10px] font-black uppercase truncate text-zinc-400 group-hover:text-white pl-1">${safeMt}</p>
+                                </div>`;
+                        });
+                        trendShelf.innerHTML = trendHtml + `</div>`;
+                    }
+
+                    const popShelf = document.getElementById('home-popular');
+                    popShelf.innerHTML = '';
+                    let popHtml = `<h2 class="text-lg sm:text-xl 2xl:text-2xl 3xl:text-3xl font-black italic uppercase tracking-tighter flex items-center gap-2"><i class="fa-solid fa-heart text-[#cae962]"></i> All-Time Populair</h2><div class="shelf-container no-scrollbar">`;
+                    res.data.popular.media.filter(m => !isAnimeBlocked(m)).forEach(m => {
+                        const mt = app.lang === 'english' ? (m.title.english || m.title.romaji) : m.title.romaji;
+                        const safeMt = escapeHTML(mt || '');
+                        const safeImg = escapeHTML(m.coverImage ? m.coverImage.large : '');
+                        const safeId = escapeHTML(String(m.id));
+                        popHtml += `
+                            <div onclick="openDetailsModal('${safeId}')" class="flex-none w-28 xs:w-32 sm:w-36 md:w-44 lg:w-52 2xl:w-64 3xl:w-72 4xl:w-80 text-left group cursor-pointer relative">
+                                <div class="aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-white/5 relative">
+                                    <img src="${safeImg}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                    <span class="absolute top-2 left-2 bg-black/85 text-accent text-[8px] font-black px-1.5 py-0.5 rounded shadow"><i class="fa-solid fa-star text-[7px] mr-1 text-[#cae962]"></i> ${m.averageScore ? (m.averageScore/10) : '?'}</span>
+                                </div>
+                                <p class="text-[10px] font-black uppercase truncate text-zinc-400 group-hover:text-white pl-1">${safeMt}</p>
+                            </div>`;
+                    });
+                    popShelf.innerHTML = popHtml + `</div>`;
+
+                    const genreConfigs = [
+                        { key: 'action', name: 'Action', icon: 'fa-bolt' },
+                        { key: 'adventure', name: 'Adventure', icon: 'fa-compass' },
+                        { key: 'comedy', name: 'Comedy', icon: 'fa-face-laugh-beam' },
+                        { key: 'drama', name: 'Drama', icon: 'fa-masks-theater' },
+                        { key: 'ecchi', name: 'Ecchi', icon: 'fa-fire-flame-curved' },
+                        { key: 'fantasy', name: 'Fantasy', icon: 'fa-wand-magic-sparkles' },
+                        { key: 'horror', name: 'Horror', icon: 'fa-ghost' },
+                        { key: 'mahou_shoujo', name: 'Mahou Shoujo', icon: 'fa-sparkles' },
+                        { key: 'mecha', name: 'Mecha', icon: 'fa-robot' },
+                        { key: 'music', name: 'Music', icon: 'fa-music' },
+                        { key: 'mystery', name: 'Mystery', icon: 'fa-magnifying-glass' },
+                        { key: 'psychological', name: 'Psychological', icon: 'fa-brain' },
+                        { key: 'romance', name: 'Romance', icon: 'fa-heart' },
+                        { key: 'sci_fi', name: 'Sci-Fi', icon: 'fa-atom' },
+                        { key: 'slice_of_life', name: 'Slice of Life', icon: 'fa-mug-hot' },
+                        { key: 'sports', name: 'Sports', icon: 'fa-basketball' },
+                        { key: 'supernatural', name: 'Supernatural', icon: 'fa-dragon' },
+                        { key: 'thriller', name: 'Thriller', icon: 'fa-skull' }
+                    ];
+
+                    const genreShelvesContainer = document.getElementById('home-genre-shelves');
+                    if (genreShelvesContainer) {
+                        let genreShelvesHtml = '';
+                        genreConfigs.forEach(cfg => {
+                            if (res.data && res.data[cfg.key] && res.data[cfg.key].media && res.data[cfg.key].media.length) {
+                                genreShelvesHtml += `
+                                    <div class="space-y-4">
+                                        <div class="flex items-center justify-between">
+                                            <h2 class="text-lg sm:text-xl 2xl:text-2xl 3xl:text-3xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+                                                <i class="fa-solid ${cfg.icon} text-[#cae962]"></i> Populair in ${cfg.name}
+                                            </h2>
+                                            <button onclick="navByGenre('${cfg.name}')" class="text-xs font-bold text-[#cae962] hover:underline flex items-center gap-1" aria-label="Bekijk alle ${cfg.name} anime">
+                                                Bekijk alle <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                            </button>
+                                        </div>
+                                        <div class="shelf-container no-scrollbar">`;
+                                res.data[cfg.key].media.filter(m => !isAnimeBlocked(m)).forEach(m => {
+                                    const mt = app.lang === 'english' ? (m.title.english || m.title.romaji) : m.title.romaji;
+                                    const safeMt = escapeHTML(mt || '');
+                                    const safeImg = escapeHTML(m.coverImage ? m.coverImage.large : '');
+                                    const safeId = escapeHTML(String(m.id));
+                                    genreShelvesHtml += `
+                                        <div onclick="openDetailsModal('${safeId}')" class="flex-none w-28 xs:w-32 sm:w-36 md:w-44 lg:w-52 2xl:w-64 3xl:w-72 4xl:w-80 text-left group cursor-pointer relative">
+                                            <div class="aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-white/5 relative">
+                                                <img src="${safeImg}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                ${m.averageScore ? `<span class="absolute top-2 left-2 bg-black/85 text-accent text-[8px] font-black px-1.5 py-0.5 rounded shadow"><i class="fa-solid fa-star text-[7px] mr-1 text-[#cae962]"></i> ${m.averageScore/10}</span>` : ''}
+                                            </div>
+                                            <p class="text-[10px] font-black uppercase truncate text-zinc-400 group-hover:text-white pl-1">${safeMt}</p>
+                                        </div>`;
+                                });
+                                genreShelvesHtml += `</div></div>`;
+                            }
+                        });
+                        genreShelvesContainer.innerHTML = genreShelvesHtml;
+                    }
+                }
+
+// --- autoUpdateProgressOnEpClick ---
+window.autoUpdateProgressOnEpClick = function(id, title, ep, total, img, customStat = null) {
+            let found = false;
+            const ex = app.xmlLib.find(i => i && i.id == id);
+            let finalStat = customStat ? customStat : (ex ? (ex.status === "Dropped" ? "Dropped" : (ep >= total ? "Watched" : ex.status)) : (ep >= total ? "Watched" : "Watching"));
+
+            app.xmlLib = app.xmlLib.map(i => {
+                if (i && i.id == id) { found = true; return { ...i, status: finalStat, progress: parseInt(ep), episodes: total, coverImage: img || i.coverImage }; }
+                return i;
+            });
+            if (!found) app.xmlLib.push({ id: id.toString(), title, status: finalStat, progress: parseInt(ep), episodes: total, coverImage: img });
+
+            saveCloudDataDebounced();
+            window.syncProgressToAniList(id, ep, finalStat);
+        }
+
+// --- updateProgressUI ---
+window.updateProgressUI = function(seconds, duration) {
+            currentPlaybackTime = parseFloat(seconds);
+            if (duration !== undefined && duration > 0) currentDuration = parseFloat(duration);
+
+            const timeText = document.getElementById('playback-time-text');
+            const percentageText = document.getElementById('playback-progress-percentage');
+            if (timeText) timeText.innerText = `${formatDuration(currentPlaybackTime)} / ${formatDuration(currentDuration)}`;
+            if (percentageText && currentDuration > 0) {
+                const pct = Math.round((currentPlaybackTime / currentDuration) * 100);
+                percentageText.innerText = `${pct}%`;
+            }
+
+            const isNearEnd = (currentDuration > 10 && currentPlaybackTime >= currentDuration - 2.5);
+            if (isNearEnd) {
+                if (autoNextTriggered) return;
+                autoNextTriggered = true;
+                setTimeout(() => { autoNextTriggered = false; }, 8000);
+                if (app.autoNext) window.playNextEpisode();
+            }
+        }
+
+// --- saveRecent ---
+window.saveRecent = function(id, title, img, ep) {
+            let rec = app.recent.filter(i => i && i.id != id);
+            rec.unshift({ id, title, img, ep, time: currentPlaybackTime || 0, duration: currentDuration || 0, ts: Date.now() });
+            app.recent = rec.slice(0, 50);
+            saveCloudDataDebounced();
+        }
+
+// --- removeRecentAnime ---
+window.removeRecentAnime = function(e, id) {
+            e.stopPropagation();
+            app.recent = app.recent.filter(r => r.id != id);
+            saveCloudDataDebounced();
+            render();
+            window.showToast("Verwijderd uit geschiedenis.");
+        }
+
+// --- startHeroTimer ---
+const startHeroTimer = () => {
+                            clearInterval(heroInterval);
+                            heroInterval = setInterval(() => {
+                                const nextIdx = (currentHeroIdx + 1) % top10.length;
+                                updateHeroSlide(nextIdx);
+                            }, 6000);
+                        }
+
+// --- updateHeroSlide ---
+const updateHeroSlide = (idx) => {
+                            currentHeroIdx = idx;
+                            const hero = top10[idx];
+                            if (!hero) return;
+                            const ht = app.lang === 'english' ? (hero.title.english || hero.title.romaji) : hero.title.romaji;
+
+                            const badgeEl = document.getElementById('hero-badge');
+                            if (badgeEl) badgeEl.innerText = `Populairste Nu #${idx + 1}`;
+
+                            const titleEl = document.getElementById('hero-title');
+                            if (titleEl) titleEl.innerText = ht;
+
+                            const descEl = document.getElementById('hero-desc');
+                            if (descEl) descEl.innerHTML = sanitizeHTML(hero.description) || '';
+
+                            const imgEl = document.getElementById('hero-img');
+                            if (imgEl) imgEl.src = hero.bannerImage || hero.coverImage.extraLarge;
+
+                            const playBtn = document.getElementById('hero-play');
+                            if (playBtn) playBtn.onclick = () => nav('watch', {id: hero.id, ep: 1});
+
+                            const infoBtn = document.getElementById('hero-info');
+                            if (infoBtn) infoBtn.onclick = () => openDetailsModal(hero.id);
+
+                            const indContainer = document.getElementById('hero-indicators');
+                            if (indContainer) {
+                                let indHtml = '';
+                                top10.forEach((_, i) => {
+                                    const active = i === idx;
+                                    indHtml += `<button onclick="event.stopPropagation(); window.switchHeroSlide(${i});" class="shrink-0 h-2.5 rounded-full transition-all duration-300 ${active ? 'w-7 bg-[#cae962]' : 'w-2.5 bg-white/30 hover:bg-white/60'}" aria-label="Slide ${i+1}"></button>`;
+                                });
+                                indContainer.innerHTML = indHtml;
+
+                                const activeBtn = indContainer.children[idx];
+                                if (activeBtn) {
+                                    indContainer.scrollTo({
+                                        left: activeBtn.offsetLeft - (indContainer.clientWidth / 2) + (activeBtn.clientWidth / 2),
+                                        behavior: 'smooth'
+                                    });
+                                }
+                            }
+                        }
+
+// --- switchHeroSlide ---
+window.switchHeroSlide = (idx) => {
+                            clearInterval(heroInterval);
+                            updateHeroSlide(idx);
+                            startHeroTimer();
+                        }
+
+// --- nextHeroSlide ---
+window.nextHeroSlide = () => {
+                            clearInterval(heroInterval);
+                            const nextIdx = (currentHeroIdx + 1) % top10.length;
+                            updateHeroSlide(nextIdx);
+                            startHeroTimer();
+                        }
+
+// --- prevHeroSlide ---
+window.prevHeroSlide = () => {
+                            clearInterval(heroInterval);
+                            const prevIdx = (currentHeroIdx - 1 + top10.length) % top10.length;
+                            updateHeroSlide(prevIdx);
+                            startHeroTimer();
+                        }
+
+// --- showConfirm ---
+window.showConfirm = function(title, msg, onConfirm) {
+            const modal = document.getElementById('confirm-modal');
+            document.getElementById('confirm-title').innerText = title;
+            document.getElementById('confirm-message').innerText = msg;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            document.getElementById('confirm-cancel-btn').onclick = () => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            };
+
+            document.getElementById('confirm-ok-btn').onclick = () => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                onConfirm();
+            };
+        }
+
+// --- renderDetailsEpisodeChunk ---
+window.renderDetailsEpisodeChunk = function(chunkIdx) {
+                        const start = chunkIdx * chunkSize + 1;
+                        const end = Math.min(start + chunkSize - 1, releasedEps);
+
+                        let buttonsHtml = '';
+                        for (let i = start; i <= end; i++) {
+                            let c = (i <= prog) ? "bg-emerald-800 text-emerald-100 hover:bg-emerald-700" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700";
+                            buttonsHtml += `<button onclick="closeDetailsModal(); autoUpdateProgressOnEpClick('${id}', '${escapeAttrJS(titleStr)}', ${i}, ${eps}, '${escapeAttrJS(m.coverImage.large || '')}'); nav('watch', {id:'${id}', ep:${i}})" class="aspect-square rounded-xl font-black text-xs transition-all ${c}">${i}</button>`;
+                        }
+
+                        const buttonsContainer = document.getElementById('detail-ep-buttons-container');
+                        if (buttonsContainer) buttonsContainer.innerHTML = buttonsHtml;
+                    }
+
+// --- renderWatchEpisodeChunk ---
+window.renderWatchEpisodeChunk = function(chunkIdx) {
+                    const start = chunkIdx * chunkSize + 1;
+                    const end = Math.min(start + chunkSize - 1, releasedEpsCount);
+
+                    let buttonsHtml = '';
+                    for (let i = start; i <= end; i++) {
+                        let c = (i == activeEp) ? "bg-[#cae962] text-black font-bold font-black" : (i <= currentProg ? "bg-emerald-800 text-emerald-100 hover:bg-emerald-700" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700");
+                        buttonsHtml += `<button onclick="window.bypassPlayerPlaceholder = true; autoUpdateProgressOnEpClick('${app.id}', '${escapeAttrJS(title)}', ${i}, ${totalEps}, '${escapeAttrJS(img)}'); nav('watch', {id:${app.id}, ep:${i}})" class="aspect-square rounded-xl font-black text-xs transition-all ${c}">${i}</button>`;
+                    }
+
+                    const buttonsContainer = document.getElementById('ep-buttons-container');
+                    if (buttonsContainer) buttonsContainer.innerHTML = buttonsHtml;
+                }
+
+// --- renderWatchEpisodeButtons ---
+window.renderWatchEpisodeButtons = function(totalEps, releasedEpsCount, currentProg, activeEp) {
+            const grid = document.getElementById('ep-grid');
+            if (!grid) return;
+
+            const loc = app.xmlLib.find(i => i && i.id == app.id) || app.recent.find(i => i && i.id == app.id);
+            const title = loc ? loc.title : "Anime";
+            const img = loc ? loc.coverImage : "";
+            const chunkSize = 100;
+
+            if (releasedEpsCount <= chunkSize) {
+                grid.innerHTML = '';
+                for (let i = 1; i <= releasedEpsCount; i++) {
+                    let c = (i == activeEp) ? "bg-[#cae962] text-black font-bold font-black" : (i <= currentProg ? "bg-emerald-800 text-emerald-100 hover:bg-emerald-700" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700");
+                    grid.innerHTML += `<button onclick="window.bypassPlayerPlaceholder = true; autoUpdateProgressOnEpClick('${app.id}', '${escapeAttrJS(title)}', ${i}, ${totalEps}, '${escapeAttrJS(img)}'); nav('watch', {id:${app.id}, ep:${i}})" class="aspect-square rounded-xl font-black text-xs transition-all ${c}">${i}</button>`;
+                }
+            } else {
+                const activeChunkIndex = Math.floor((activeEp - 1) / chunkSize);
+
+                window.renderWatchEpisodeChunk = function(chunkIdx) {
+                    const start = chunkIdx * chunkSize + 1;
+                    const end = Math.min(start + chunkSize - 1, releasedEpsCount);
+
+                    let buttonsHtml = '';
+                    for (let i = start; i <= end; i++) {
+                        let c = (i == activeEp) ? "bg-[#cae962] text-black font-bold font-black" : (i <= currentProg ? "bg-emerald-800 text-emerald-100 hover:bg-emerald-700" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700");
+                        buttonsHtml += `<button onclick="window.bypassPlayerPlaceholder = true; autoUpdateProgressOnEpClick('${app.id}', '${escapeAttrJS(title)}', ${i}, ${totalEps}, '${escapeAttrJS(img)}'); nav('watch', {id:${app.id}, ep:${i}})" class="aspect-square rounded-xl font-black text-xs transition-all ${c}">${i}</button>`;
+                    }
+
+                    const buttonsContainer = document.getElementById('ep-buttons-container');
+                    if (buttonsContainer) buttonsContainer.innerHTML = buttonsHtml;
+                };
+
+                let selectHtml = `<select onchange="window.renderWatchEpisodeChunk(parseInt(this.value))" class="col-span-full bg-zinc-900 border border-white/10 p-3 rounded-xl text-xs font-black uppercase text-white outline-none mb-2">`;
+                for (let c = 0; c < Math.ceil(releasedEpsCount / chunkSize); c++) {
+                    const start = c * chunkSize + 1;
+                    const end = Math.min(start + chunkSize - 1, releasedEpsCount);
+                    const isSelected = (c === activeChunkIndex) ? 'selected' : '';
+                    selectHtml += `<option value="${c}" ${isSelected}>Afleveringen ${start} - ${end}</option>`;
+                }
+                selectHtml += `</select>`;
+
+                grid.innerHTML = selectHtml + `<div id="ep-buttons-container" class="col-span-full grid grid-cols-4 xs:grid-cols-5 sm:grid-cols-10 md:grid-cols-12 2xl:grid-cols-15 3xl:grid-cols-20 gap-2"></div>`;
+                window.renderWatchEpisodeChunk(activeChunkIndex);
+            }
+        }
+
+
+// --- Backup & Settings Helpers ---
+window.exportBackup = function() {
+    const data = {
+        appState: {
+            user: app.user,
+            avatar: app.avatar,
+            ageFilterEnabled: app.ageFilterEnabled,
+            ageFilterLevel: app.ageFilterLevel,
+            autoNext: app.autoNext,
+            autoPlay: app.autoPlay,
+            skipSeconds: app.skipSeconds,
+            defaultAudio: app.defaultAudio
+        },
+        recent: app.recent || [],
+        xmlLib: app.xmlLib || [],
+        exportedAt: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `streammax-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    if (typeof showToast === 'function') showToast("Backup succesvol geëxporteerd!", "success");
+};
+
+window.importBackup = function(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (data.recent && Array.isArray(data.recent)) app.recent = data.recent;
+            if (data.xmlLib && Array.isArray(data.xmlLib)) app.xmlLib = data.xmlLib;
+            if (data.appState) {
+                if (data.appState.user) app.user = data.appState.user;
+                if (data.appState.avatar) app.avatar = data.appState.avatar;
+                if (data.appState.ageFilterLevel) app.ageFilterLevel = data.appState.ageFilterLevel;
+            }
+            localStorage.setItem('sm_progress', JSON.stringify(app.recent));
+            if (typeof showToast === 'function') showToast("Backup succesvol geïmporteerd!", "success");
+            if (typeof render === 'function') render();
+        } catch (err) {
+            if (typeof showToast === 'function') showToast("Ongeldig backup bestand!", "error");
+        }
+    };
+    reader.readAsText(file);
+};
+
+window.clearHistory = function() {
+    const doClear = () => {
+        app.recent = [];
+        localStorage.removeItem('sm_progress');
+        localStorage.removeItem('streammax:progress');
+        if (typeof showToast === 'function') showToast("Geschiedenis gewist!", "info");
+        if (typeof render === 'function') render();
+    };
+    if (typeof showConfirm === 'function') {
+        showConfirm("Geschiedenis Wissen", "Weet u zeker dat u uw gehele kijkgeschiedenis wilt wissen?", doClear);
+    } else {
+        if (confirm("Weet u zeker dat u uw kijken geschiedenis wilt wissen?")) doClear();
+    }
+};
+
+window.renderSettingsPage = function() {
+    const content = document.getElementById('content');
+    if (!content) return;
+
+    const anilistStatusText = app.anilistToken ? `Gekoppeld als ${app.anilistProfile ? escapeHTML(app.anilistProfile.name) : 'AniList Gebruiker'}` : 'Niet Gekoppeld';
+
+    content.innerHTML = `
+        <div class="max-w-4xl mx-auto space-y-8 pb-16 animate-fade-in">
+            <div class="flex items-center gap-3 border-b border-purple-500/20 pb-4">
+                <i class="fa-solid fa-gear text-purple-400 text-2xl"></i>
+                <div>
+                    <h1 class="text-2xl font-black uppercase text-white tracking-wide">Instellingen & Opties</h1>
+                    <p class="text-xs text-slate-400">Beheer uw voorkeuren, beveiliging en AniList koppeling</p>
+                </div>
+            </div>
+
+            <!-- Profile & Avatar -->
+            <div class="card p-6 space-y-4">
+                <h2 class="text-base font-black uppercase text-purple-300 flex items-center gap-2"><i class="fa-solid fa-user-gear"></i> Profiel Instellingen</h2>
+                <div class="flex flex-col sm:flex-row items-center gap-6">
+                    <div class="relative group">
+                        <img id="profile-avatar-img" src="${app.avatar || 'https://via.placeholder.com/150/110826/a855f7?text=Max'}" class="w-24 h-24 rounded-full object-cover border-2 border-purple-500/40 shadow-xl">
+                    </div>
+                    <div class="flex-1 space-y-3 w-full">
+                        <div>
+                            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Gebruikersnaam</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="setting-username-input" value="${escapeHTML(app.user)}" class="input-group flex-1 py-2 text-sm">
+                                <button onclick="changeUsername()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all">Opslaan</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AniList Connection -->
+            <div class="card p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-base font-black uppercase text-purple-300 flex items-center gap-2"><i class="fa-solid fa-link"></i> AniList Synchronisatie</h2>
+                        <p class="text-xs text-slate-400">Koppel uw AniList account om automatisch voortgang te synchroniseren</p>
+                    </div>
+                    <span class="text-xs font-bold px-3 py-1 rounded-full ${app.anilistToken ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'}">${anilistStatusText}</span>
+                </div>
+                <div class="flex flex-wrap gap-3 pt-2">
+                    ${app.anilistToken ? `
+                        <button onclick="syncAniListListToLocal(true)" class="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2"><i class="fa-solid fa-rotate"></i> Sync Nu</button>
+                        <button onclick="disconnectAniList()" class="bg-red-950/80 hover:bg-red-900 border border-red-500/30 text-red-300 font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2"><i class="fa-solid fa-plug-circle-xmark"></i> Ontkoppelen</button>
+                    ` : `
+                        <button onclick="loginAniListOAuth()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-purple-600/30"><i class="fa-solid fa-arrow-right-to-bracket"></i> Koppel met AniList</button>
+                    `}
+                </div>
+            </div>
+
+            <!-- Age Rating & Content Filter -->
+            <div class="card p-6 space-y-4">
+                <h2 class="text-base font-black uppercase text-purple-300 flex items-center gap-2"><i class="fa-solid fa-shield-halved"></i> Leeftijdsfilter & Beveiliging</h2>
+                <div class="flex items-center justify-between py-2 border-b border-purple-500/10">
+                    <div>
+                        <span class="text-sm font-bold text-white block">Leeftijdsfilter Inschakelen</span>
+                        <span class="text-xs text-slate-400">Blokkeer content boven de gekozen keuring</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" onchange="toggleAgeFilterSetting(this.checked)" ${app.ageFilterEnabled ? 'checked' : ''} class="sr-only peer">
+                        <div class="w-11 h-6 toggle-bg rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                    </label>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Maximale Keuring</label>
+                        <select onchange="changeAgeFilterLevel(this.value)" class="input-group w-full text-xs">
+                            <option value="G" ${app.ageFilterLevel === 'G' ? 'selected' : ''}>G (Alle Leeftijden)</option>
+                            <option value="PG" ${app.ageFilterLevel === 'PG' ? 'selected' : ''}>PG (Ouderlijk Toezicht)</option>
+                            <option value="PG-13" ${app.ageFilterLevel === 'PG-13' ? 'selected' : ''}>PG-13 (13+)</option>
+                            <option value="R" ${app.ageFilterLevel === 'R' ? 'selected' : ''}>R (17+)</option>
+                            <option value="R+" ${app.ageFilterLevel === 'R+' ? 'selected' : ''}>R+ (Mild Nudity)</option>
+                            <option value="Rx" ${app.ageFilterLevel === 'Rx' ? 'selected' : ''}>Rx (Hentai / Rx)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Backup & Data -->
+            <div class="card p-6 space-y-4">
+                <h2 class="text-base font-black uppercase text-purple-300 flex items-center gap-2"><i class="fa-solid fa-database"></i> Gegevens & Back-up</h2>
+                <div class="flex flex-wrap gap-3">
+                    <button onclick="exportBackup()" class="bg-purple-950 hover:bg-purple-900 border border-purple-500/30 text-purple-200 font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2"><i class="fa-solid fa-file-export"></i> Exporteer Back-up (JSON)</button>
+                    <label class="bg-purple-950 hover:bg-purple-900 border border-purple-500/30 text-purple-200 font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-file-import"></i> Importeer Back-up
+                        <input type="file" accept=".json" onchange="importBackup(event)" class="hidden">
+                    </label>
+                    <button onclick="clearHistory()" class="bg-red-950/80 hover:bg-red-900 border border-red-500/30 text-red-300 font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2"><i class="fa-solid fa-trash-can"></i> Geschiedenis Wissen</button>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+
 function nav(viewName, params = {}) {
     app.view = viewName;
 
@@ -370,6 +3150,8 @@ function nav(viewName, params = {}) {
         renderGridPage('tv');
     } else if (viewName === 'history') {
         renderHistoryPage();
+    } else if (viewName === 'settings') {
+        renderSettingsPage();
     } else if (viewName === 'search') {
         renderSearchPage();
     } else {
