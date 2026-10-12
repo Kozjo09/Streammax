@@ -12,6 +12,8 @@
     <link rel="dns-prefetch" href="https://vidsrc-embed.ru">
     <link rel="dns-prefetch" href="https://vidsrc.sh">
     <link rel="dns-prefetch" href="https://embedmaster.link">
+    <link rel="dns-prefetch" href="https://vidsrc.mov">
+    <link rel="dns-prefetch" href="https://multiembed.mov">
     <link rel="preconnect" href="https://api.themoviedb.org" crossorigin>
     <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
 
@@ -99,9 +101,10 @@
 
         /* Player & Server Knoppen */
         .player-box { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 16px; overflow: hidden; border: 1px solid rgba(139, 92, 246, 0.2); }
-        .srv-btn { flex: 1; text-align: center; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 12px 4px; border-radius: 12px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
+        .srv-btn { flex: 1; min-width: 0; text-align: center; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 10px 4px; border-radius: 12px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .srv-btn.active { background: #7c3aed; color: white; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3); border-color: #a855f7; }
         .srv-btn.inactive { background: #110826; color: #64748b; border-color: rgba(139, 92, 246, 0.2); }
+        .srv-btn.inactive:hover { background: #1a0d36; color: #a855f7; border-color: rgba(168, 85, 247, 0.4); }
 
         /* Episode Grid */
         .ep-btn { width: 100%; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 800; font-size: 14px; transition: all 0.2s; cursor: pointer; }
@@ -734,10 +737,13 @@ async function renderPlayerPage() {
             </div>
 
             <!-- Server Select Buttons -->
-            <div class="flex gap-2 overflow-x-auto" id="serverButtons">
+            <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 w-full" id="serverButtons">
                 <button onclick="changeServer('1')" id="btn-srv-1" class="srv-btn ${app.srv === '1' ? 'active' : 'inactive'}">VidSrc.ru</button>
                 <button onclick="changeServer('2')" id="btn-srv-2" class="srv-btn ${app.srv === '2' ? 'active' : 'inactive'}">VidSrc.sh</button>
                 <button onclick="changeServer('3')" id="btn-srv-3" class="srv-btn ${app.srv === '3' ? 'active' : 'inactive'}">EmbedMaster</button>
+                <button onclick="changeServer('4')" id="btn-srv-4" class="srv-btn ${app.srv === '4' ? 'active' : 'inactive'}">VidSrc.mov</button>
+                <button onclick="changeServer('5')" id="btn-srv-5" class="srv-btn ${app.srv === '5' ? 'active' : 'inactive'}">MultiEmbed</button>
+                <button onclick="changeServer('6')" id="btn-srv-6" class="srv-btn ${app.srv === '6' ? 'active' : 'inactive'}">MultiEmbed VIP</button>
             </div>
 
             <!-- TV Controls -->
@@ -851,13 +857,25 @@ function injectIframe() {
     } else if (srv === '2') {
         url = safeType === 'movie' ? `https://vidsrc.sh/embed/movie?${idParam}`
                                    : `https://vidsrc.sh/embed/tv?${idParam}&season=${safeSeason}&episode=${safeEpisode}`;
-    } else {
+    } else if (srv === '3') {
         url = safeType === 'movie' ? `https://embedmaster.link/movie/${safeMediaId}`
                                    : `https://embedmaster.link/tv/${safeMediaId}/${safeSeason}/${safeEpisode}`;
+    } else if (srv === '4') {
+        url = safeType === 'movie' ? `https://vidsrc.mov/embed/movie/${safeMediaId}`
+                                   : `https://vidsrc.mov/embed/tv/${safeMediaId}/${safeSeason}/${safeEpisode}`;
+    } else if (srv === '5') {
+        url = safeType === 'movie' ? `https://multiembed.mov/directstream.php?video_id=${safeMediaId}&tmdb=1`
+                                   : `https://multiembed.mov/directstream.php?video_id=${safeMediaId}&tmdb=1&s=${safeSeason}&e=${safeEpisode}`;
+    } else if (srv === '6') {
+        url = safeType === 'movie' ? `https://multiembed.mov/directstream.php?video_id=${safeMediaId}&tmdb=1&s=vip`
+                                   : `https://multiembed.mov/directstream.php?video_id=${safeMediaId}&tmdb=1&s=${safeSeason}&e=${safeEpisode}&vip=1`;
+    } else {
+        url = safeType === 'movie' ? `https://vidsrc-embed.ru/embed/movie?${idParam}`
+                                   : `https://vidsrc-embed.ru/embed/tv?${idParam}&season=${safeSeason}&episode=${safeEpisode}`;
     }
 
     let safeUrl = escapeHTML(url);
-    let refPol = (srv !== '3') ? ' referrerpolicy="origin"' : '';
+    let refPol = (srv === '1' || srv === '2') ? ' referrerpolicy="origin"' : '';
     let playerBox = document.getElementById('playerBox');
     if (playerBox) {
         playerBox.innerHTML = `<iframe src="${safeUrl}" allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *" allowfullscreen${refPol} scrolling="no"></iframe>`;
@@ -866,7 +884,7 @@ function injectIframe() {
 
 function changeServer(srvId) {
     app.srv = String(srvId);
-    ['1','2','3'].forEach(id => {
+    ['1','2','3','4','5','6'].forEach(id => {
         let btn = document.getElementById('btn-srv-' + id);
         if (btn) btn.className = 'srv-btn ' + (id === app.srv ? 'active' : 'inactive');
     });
@@ -999,6 +1017,8 @@ const TRUSTED_MESSAGE_ORIGINS = [
     'https://vidsrc-embed.ru',
     'https://vidsrc.sh',
     'https://embedmaster.link',
+    'https://vidsrc.mov',
+    'https://multiembed.mov',
     window.location.origin
 ];
 
