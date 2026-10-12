@@ -995,7 +995,17 @@ function goNextEpisode() {
     }
 }
 
+const TRUSTED_MESSAGE_ORIGINS = [
+    'https://vidsrc-embed.ru',
+    'https://vidsrc.sh',
+    'https://embedmaster.link',
+    window.location.origin
+];
+
 window.addEventListener('message', function(e) {
+    // Security check: Verify origin before handling player messages
+    if (!e.origin || !TRUSTED_MESSAGE_ORIGINS.includes(e.origin)) return;
+
     if ((e.data === 'video_ended' || e.data?.event === 'ended')) {
         let toggle = document.getElementById('autoNextToggle');
         if (toggle && toggle.checked) {
