@@ -864,11 +864,11 @@ function injectIframe() {
         url = safeType === 'movie' ? `https://vidsrc.mov/embed/movie/${safeMediaId}`
                                    : `https://vidsrc.mov/embed/tv/${safeMediaId}/${safeSeason}/${safeEpisode}`;
     } else if (srv === '5') {
+        url = safeType === 'movie' ? `https://multiembed.mov/?video_id=${safeMediaId}&tmdb=1`
+                                   : `https://multiembed.mov/?video_id=${safeMediaId}&tmdb=1&s=${safeSeason}&e=${safeEpisode}`;
+    } else if (srv === '6') {
         url = safeType === 'movie' ? `https://multiembed.mov/directstream.php?video_id=${safeMediaId}&tmdb=1`
                                    : `https://multiembed.mov/directstream.php?video_id=${safeMediaId}&tmdb=1&s=${safeSeason}&e=${safeEpisode}`;
-    } else if (srv === '6') {
-        url = safeType === 'movie' ? `https://multiembed.mov/directstream.php?video_id=${safeMediaId}&tmdb=1&s=vip`
-                                   : `https://multiembed.mov/directstream.php?video_id=${safeMediaId}&tmdb=1&s=${safeSeason}&e=${safeEpisode}&vip=1`;
     } else {
         url = safeType === 'movie' ? `https://vidsrc-embed.ru/embed/movie?${idParam}`
                                    : `https://vidsrc-embed.ru/embed/tv?${idParam}&season=${safeSeason}&episode=${safeEpisode}`;
