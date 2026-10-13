@@ -4312,20 +4312,6 @@
 
             sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            // Startup test parameter bypass ('test=true' in query parameters) to mock test session
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('test') === 'true') {
-                sessionData = { user: { id: "test-user-id", email: "test@example.com" } };
-                app.user = "TestUser";
-                app.xmlLib = [];
-                app.recent = [];
-                document.getElementById('app-header').classList.remove('hidden');
-                document.getElementById('app-navigation').classList.remove('hidden');
-                restoreStateFromUrl();
-                render();
-                return;
-            }
-            
             const hasAuthError = parseAuthUrlError();
 
             if (!hasAuthError && (window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery') || checkIsAgeReset())) {
