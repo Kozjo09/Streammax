@@ -9,7 +9,7 @@
     <!-- DNS Prefetch and Preconnect Hints for performance optimization -->
     <link rel="dns-prefetch" href="https://api.themoviedb.org">
     <link rel="dns-prefetch" href="https://image.tmdb.org">
-    <link rel="dns-prefetch" href="https://vidsrc-embed.ru">
+    <link rel="dns-prefetch" href="https://vidsrc2.ru">
     <link rel="dns-prefetch" href="https://vidsrc.sh">
     <link rel="dns-prefetch" href="https://embedmaster.link">
     <link rel="dns-prefetch" href="https://vidsrc.mov">
@@ -738,7 +738,7 @@ async function renderPlayerPage() {
 
             <!-- Server Select Buttons -->
             <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 w-full" id="serverButtons">
-                <button onclick="changeServer('1')" id="btn-srv-1" class="srv-btn ${app.srv === '1' ? 'active' : 'inactive'}">VidSrc.ru</button>
+                <button onclick="changeServer('1')" id="btn-srv-1" class="srv-btn ${app.srv === '1' ? 'active' : 'inactive'}">Vidsrc2.ru</button>
                 <button onclick="changeServer('2')" id="btn-srv-2" class="srv-btn ${app.srv === '2' ? 'active' : 'inactive'}">VidSrc.sh</button>
                 <button onclick="changeServer('3')" id="btn-srv-3" class="srv-btn ${app.srv === '3' ? 'active' : 'inactive'}">EmbedMaster</button>
                 <button onclick="changeServer('4')" id="btn-srv-4" class="srv-btn ${app.srv === '4' ? 'active' : 'inactive'}">VidSrc.mov</button>
@@ -852,8 +852,8 @@ function injectIframe() {
     let url = "";
 
     if (srv === '1') {
-        url = safeType === 'movie' ? `https://vidsrc-embed.ru/embed/movie?${idParam}`
-                                   : `https://vidsrc-embed.ru/embed/tv?${idParam}&season=${safeSeason}&episode=${safeEpisode}`;
+        url = safeType === 'movie' ? `https://vidsrc2.ru/embed/movie?${idParam}`
+                                   : `https://vidsrc2.ru/embed/tv?${idParam}&season=${safeSeason}&episode=${safeEpisode}`;
     } else if (srv === '2') {
         url = safeType === 'movie' ? `https://vidsrc.sh/embed/movie?${idParam}`
                                    : `https://vidsrc.sh/embed/tv?${idParam}&season=${safeSeason}&episode=${safeEpisode}`;
