@@ -474,7 +474,7 @@ function renderShelf(containerId, title, items, mediaType) {
         html += `
             <div onclick="openDetailsModal('${encodeURIComponent(item.id)}', '${encodeURIComponent(mediaType)}')" class="flex-none w-28 xs:w-32 sm:w-36 md:w-44 lg:w-52 2xl:w-64 3xl:w-72 4xl:w-80 text-left group cursor-pointer relative">
                 <div class="aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-purple-500/10 relative">
-                    ${posterSrc ? `<img src="${posterSrc}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">` : `<div class="w-full h-full bg-[#110826] flex items-center justify-center p-2 text-[10px] text-slate-500 text-center font-bold uppercase">${itemTitle}</div>`}
+                    ${posterSrc ? `<img src="${posterSrc}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">` : `<div class="w-full h-full bg-[#110826] flex items-center justify-center p-2 text-[10px] text-slate-500 text-center font-bold uppercase">${escapeHTML(itemTitle)}</div>`}
                     ${item.vote_average ? `<span class="absolute top-2 left-2 bg-black/80 text-purple-300 text-[8px] font-black px-1.5 py-0.5 rounded shadow border border-purple-500/30"><i class="fa-solid fa-star text-[7px] mr-1 text-purple-400"></i> ${item.vote_average.toFixed(1)}</span>` : ''}
                 </div>
                 <p class="text-[10px] font-black uppercase truncate text-slate-400 group-hover:text-white pl-1">${itemTitle}</p>
@@ -508,7 +508,7 @@ function renderHomeHistory() {
                     <div class="aspect-video rounded-xl bg-[#0e071b] border border-purple-500/10 relative overflow-hidden mb-2">
                         <img class="w-full h-full object-cover hist-img-${safeVid} opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all">
                         <i class="fa-solid fa-play absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/50 group-hover:text-purple-400 text-2xl transition-all scale-75 group-hover:scale-100"></i>
-                        <span class="absolute top-2 left-2 bg-black/90 px-1.5 py-0.5 rounded text-[8px] font-black text-purple-400 border border-purple-500/20">${epText}</span>
+                        <span class="absolute top-2 left-2 bg-black/90 px-1.5 py-0.5 rounded text-[8px] font-black text-purple-400 border border-purple-500/20">${escapeHTML(epText)}</span>
                     </div>
                     <p class="text-[10px] font-black uppercase truncate text-slate-300 group-hover:text-white pl-1">${escapeHTML(d.title || vid)}</p>
                 </div>
@@ -609,7 +609,7 @@ function renderHistoryPage() {
                 <div>
                     <div class="aspect-video rounded-lg bg-[#0e071b] border border-purple-500/10 relative overflow-hidden mb-2">
                         <img class="w-full h-full object-cover hist-page-img-${safeVid} opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all">
-                        <span class="absolute top-2 left-2 bg-black/85 px-1.5 py-0.5 rounded text-[8px] font-black text-purple-400 border border-purple-500/20">${epText}</span>
+                        <span class="absolute top-2 left-2 bg-black/85 px-1.5 py-0.5 rounded text-[8px] font-black text-purple-400 border border-purple-500/20">${escapeHTML(epText)}</span>
                     </div>
                     <p class="text-[10px] font-black uppercase truncate text-slate-300 group-hover:text-white pl-1">${escapeHTML(d.title || vid)}</p>
                 </div>
