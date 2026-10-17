@@ -997,20 +997,64 @@ function playSpecificEpisode(epNum) {
     saveToHistory();
 }
 
-function goNextEpisode() {
-    if (document.fullscreenElement) { document.exitFullscreen().catch(e => console.log(e)); }
+function exitFullscreenIfActive() {
+    return new Promise((resolve) => {
+        const fsElement = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+        if (fsElement) {
+            let resolved = false;
+            const cleanupAndResolve = () => {
+                if (resolved) return;
+                resolved = true;
+                document.removeEventListener('fullscreenchange', cleanupAndResolve);
+                document.removeEventListener('webkitfullscreenchange', cleanupAndResolve);
+                document.removeEventListener('mozfullscreenchange', cleanupAndResolve);
+                document.removeEventListener('MSFullscreenChange', cleanupAndResolve);
+                resolve();
+            };
 
-    if (app.episode < app.totalEpsInSeason) {
-        playSpecificEpisode(app.episode + 1);
-    } else {
-        let seasonSelect = document.getElementById('seasonSelect');
-        if (seasonSelect && app.season < seasonSelect.options.length) {
-            seasonSelect.value = app.season + 1;
-            changeSeason();
+            document.addEventListener('fullscreenchange', cleanupAndResolve);
+            document.addEventListener('webkitfullscreenchange', cleanupAndResolve);
+            document.addEventListener('mozfullscreenchange', cleanupAndResolve);
+            document.addEventListener('MSFullscreenChange', cleanupAndResolve);
+
+            let exitPromise = null;
+            if (document.exitFullscreen) {
+                exitPromise = document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.mozCancelFullScreen) {
+                document.mozCancelFullScreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+
+            if (exitPromise && exitPromise.catch) {
+                exitPromise.catch(err => {
+                    console.warn("Exit fullscreen failed:", err);
+                    cleanupAndResolve();
+                });
+            }
+            setTimeout(cleanupAndResolve, 300);
         } else {
-            showToast("Je bent helemaal bij! Dit was de laatste aflevering.");
+            resolve();
         }
-    }
+    });
+}
+
+function goNextEpisode() {
+    exitFullscreenIfActive().then(() => {
+        if (app.episode < app.totalEpsInSeason) {
+            playSpecificEpisode(app.episode + 1);
+        } else {
+            let seasonSelect = document.getElementById('seasonSelect');
+            if (seasonSelect && seasonSelect.selectedIndex >= 0 && seasonSelect.selectedIndex < seasonSelect.options.length - 1) {
+                seasonSelect.selectedIndex = seasonSelect.selectedIndex + 1;
+                changeSeason();
+            } else {
+                showToast("Je bent helemaal bij! Dit was the laatste aflevering.");
+            }
+        }
+    });
 }
 
 const TRUSTED_MESSAGE_ORIGINS = [
